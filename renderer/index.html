@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gul Son's — Shop Management Desktop Application</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+
+  <!-- Opening Splash Screen Overlay -->
+  <div class="splash-overlay" id="splash-overlay">
+    
+    <!-- Phase 1: Kalma -->
+    <div class="splash-card" id="splash-phase-1">
+      <img src="assets/kalma.jpg" alt="Kalma Tayyaba" class="splash-img-kalma animate-scale-in">
+      <p style="font-size: var(--text-base); color: var(--color-accent); letter-spacing: 1px; font-weight: 500; margin-top: var(--space-2);">
+        In the name of Allah, the Most Gracious, the Most Merciful
+      </p>
+    </div>
+
+    <!-- Phase 2: Logo & Welcome Message -->
+    <div class="splash-card" id="splash-phase-2" style="display: none;">
+      <img src="assets/logo.jpeg" alt="Gul Son's Logo" class="splash-img-logo animate-scale-in">
+      <h1 class="splash-title">Gul Son's</h1>
+      <p class="splash-subtitle">Clothes & Perfume Shop</p>
+      <div style="background: var(--color-bg-card); padding: var(--space-4) var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border); max-width: 480px; margin-top: var(--space-2);">
+        <p style="font-size: var(--text-md); color: var(--color-text-primary); font-weight: 600;">Welcome to Shop Manager</p>
+        <p style="font-size: var(--text-sm); color: var(--color-text-muted); margin-top: 4px;">Managing sales, stock, clothes & perfume variants offline</p>
+      </div>
+    </div>
+
+    <!-- Skip / Enter App Button -->
+    <button class="btn btn-secondary btn-sm splash-skip-btn" id="splash-btn-skip">
+      <span>Skip to App &rarr;</span>
+    </button>
+  </div>
+
+  <!-- Custom Frameless Titlebar -->
+  <div class="titlebar">
+    <div class="titlebar-title">
+      <span class="logo-text">Gul Son's</span>
+      <span>• Shop Manager</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" id="btn-minimize" title="Minimize">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>
+      </button>
+      <button class="titlebar-btn" id="btn-maximize" title="Maximize">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      </button>
+      <button class="titlebar-btn close" id="btn-close" title="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- App Main Container -->
+  <div class="app-container">
+
+    <!-- Left Sidebar Navigation (Exact 13 Items) -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <img src="assets/logo.jpeg" alt="Logo" style="width:42px; height:42px; border-radius: var(--radius-md); object-fit:cover; border:1px solid var(--color-accent);">
+          <div class="sidebar-logo-text">
+            <h2>Gul Son's</h2>
+            <span>Clothes & Perfume</span>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="sidebar-section-title">Navigation Menu</div>
+
+        <!-- 1. Search -->
+        <div class="nav-item" data-page="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span>1. Search</span>
+        </div>
+
+        <!-- 2. Dashboard -->
+        <div class="nav-item active" data-page="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span>2. Dashboard</span>
+        </div>
+
+        <!-- 3. Sales / POS -->
+        <div class="nav-item" data-page="pos">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          <span>3. Sales / POS</span>
+        </div>
+
+        <!-- 4. Sales Return -->
+        <div class="nav-item" data-page="sales-return">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          <span>4. Sales Return</span>
+        </div>
+
+        <!-- 5. Customer Voucher -->
+        <div class="nav-item" data-page="customers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>5. Customer Voucher</span>
+        </div>
+
+        <!-- 6. Add Stock -->
+        <div class="nav-item" data-page="add-stock">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>6. Add Stock</span>
+        </div>
+
+        <!-- 7. Purchase Stock -->
+        <div class="nav-item" data-page="purchase-stock">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          <span>7. Purchase Stock</span>
+        </div>
+
+        <!-- 8. Purchase Return -->
+        <div class="nav-item" data-page="purchase-return">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
+          <span>8. Purchase Return</span>
+        </div>
+
+        <!-- 9. Company Voucher -->
+        <div class="nav-item" data-page="company-voucher">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+          <span>9. Company Voucher</span>
+        </div>
+
+        <!-- 10. Available Stock Report -->
+        <div class="nav-item" data-page="stock-report">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          <span>10. Available Stock Report</span>
+          <span class="badge hidden" id="sidebar-low-stock-badge">0</span>
+        </div>
+
+        <!-- 11. Cash Book -->
+        <div class="nav-item" data-page="cash-book">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          <span>11. Cash Book</span>
+        </div>
+
+        <!-- 12. Data Backup -->
+        <div class="nav-item" data-page="backup">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          <span>12. Data Backup</span>
+        </div>
+
+        <!-- 13. Shut Down -->
+        <div class="nav-item" style="color: var(--color-danger);" data-page="shutdown">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          <span>13. Shut Down</span>
+        </div>
+
+      </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content" id="main-content">
+      <!-- Dynamic Page Views inserted here -->
+    </main>
+
+  </div>
+
+  <!-- Global Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Global Modal Overlay -->
+  <div class="modal-overlay hidden" id="modal-overlay">
+    <div class="modal" id="modal-container">
+      <!-- Dynamic modal content -->
+    </div>
+  </div>
+
+  <!-- JS Scripts -->
+  <script src="js/utils/formatters.js"></script>
+  <script src="js/utils/toast.js"></script>
+  <script src="js/utils/modal.js"></script>
+  <script src="js/pages/dashboard.js"></script>
+  <script src="js/pages/inventory.js"></script>
+  <script src="js/pages/pos.js"></script>
+  <script src="js/pages/sales-history.js"></script>
+  <script src="js/pages/customers.js"></script>
+  <script src="js/pages/reports.js"></script>
+  <script src="js/pages/settings.js"></script>
+  <script src="js/pages/finance.js"></script>
+  <script src="js/pages/suppliers.js"></script>
+  <script src="js/pages/categories.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

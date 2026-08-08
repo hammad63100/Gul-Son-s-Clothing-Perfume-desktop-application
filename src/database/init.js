@@ -1,0 +1,401 @@
+const path = require('path');
+const fs = require('fs');
+const { app } = require('electron');
+
+async function createDatabaseAdapter(dbPath) {
+  // Option 1: Try native node:sqlite (Node 22.5+ / Node 24)
+  try {
+    const { DatabaseSync } = require('node:sqlite');
+    const nativeDb = new DatabaseSync(dbPath);
+    console.log('SQLite Engine: Native node:sqlite');
+    return {
+      pragma(cmd) { try { nativeDb.exec(`PRAGMA ${cmd}`); } catch (e) {} },
+      exec(sql) { nativeDb.exec(sql); },
+      prepare(sql) {
+        const stmt = nativeDb.prepare(sql);
+        return {
+          run(...params) {
+            const boundParams = (params.length === 1 && Array.isArray(params[0])) ? params[0] : params;
+            if (boundParams && boundParams.length > 0) return stmt.run(boundParams);
+            return stmt.run();
+          },
+          get(...params) {
+            const boundParams = (params.length === 1 && Array.isArray(params[0])) ? params[0] : params;
+            if (boundParams && boundParams.length > 0) return stmt.get(boundParams);
+            return stmt.get();
+          },
+          all(...params) {
+            const boundParams = (params.length === 1 && Array.isArray(params[0])) ? params[0] : params;
+            if (boundParams && boundParams.length > 0) return stmt.all(boundParams);
+            return stmt.all();
+          }
+        };
+      },
+      transaction(fn) {
+        return function(...args) {
+          try { nativeDb.exec('BEGIN TRANSACTION'); } catch (e) {}
+          try {
+            const res = fn(...args);
+            try { nativeDb.exec('COMMIT'); } catch (e) {}
+            return res;
+          } catch (err) {
+            try { nativeDb.exec('ROLLBACK'); } catch (e) {}
+            throw err;
+          }
+        };
+      },
+      close() { nativeDb.close(); }
+    };
+  } catch (e) {}
+
+  // Option 2: Try better-sqlite3
+  try {
+    const Database = require('better-sqlite3');
+    const bDb = new Database(dbPath);
+    console.log('SQLite Engine: better-sqlite3');
+    return bDb;
+  } catch (e) {}
+
+  // Option 3: Pure WASM sql.js
+  try {
+    const initSqlJs = require('sql.js');
+    const SQL = await initSqlJs();
+    console.log('SQLite Engine: Pure WASM sql.js');
+
+    let wasmDb;
+    if (fs.existsSync(dbPath)) {
+      const filebuffer = fs.readFileSync(dbPath);
+      wasmDb = new SQL.Database(filebuffer);
+    } else {
+      wasmDb = new SQL.Database();
+    }
+
+    const saveToDisk = () => {
+      try {
+        const data = wasmDb.export();
+        const buffer = Buffer.from(data);
+        fs.writeFileSync(dbPath, buffer);
+      } catch (err) {
+        console.error('Failed to save WASM SQLite database to disk:', err);
+      }
+    };
+
+    const execSelect = (sql, params = []) => {
+      try {
+        let boundParams = params;
+        if (params.length === 1 && Array.isArray(params[0])) {
+          boundParams = params[0];
+        }
+        const results = wasmDb.exec(sql, boundParams);
+        if (!results || results.length === 0) return [];
+        const cols = results[0].columns;
+        return results[0].values.map(rowValues => {
+          const obj = {};
+          cols.forEach((col, idx) => {
+            obj[col] = rowValues[idx];
+          });
+          return obj;
+        });
+      } catch (err) {
+        console.error('WASM SQL Exec Error:', err.message, 'Query:', sql, 'Params:', params);
+        return [];
+      }
+    };
+
+    return {
+      pragma(cmd) {
+        try { wasmDb.exec(`PRAGMA ${cmd}`); } catch (e) {}
+      },
+      exec(sql) {
+        wasmDb.exec(sql);
+        saveToDisk();
+      },
+      prepare(sql) {
+        return {
+          run(...params) {
+            const boundParams = (params.length === 1 && Array.isArray(params[0])) ? params[0] : params;
+            if (boundParams && boundParams.length > 0) {
+              wasmDb.run(sql, boundParams);
+            } else {
+              wasmDb.run(sql);
+            }
+            saveToDisk();
+            let lastInsertRowid = 0;
+            try {
+              const res = wasmDb.exec("SELECT last_insert_rowid() as id");
+              lastInsertRowid = res[0] && res[0].values && res[0].values[0] ? res[0].values[0][0] : 0;
+            } catch (e) {}
+            return { lastInsertRowid };
+          },
+          get(...params) {
+            const rows = execSelect(sql, params);
+            return rows.length > 0 ? rows[0] : null;
+          },
+          all(...params) {
+            return execSelect(sql, params);
+          }
+        };
+      },
+      transaction(fn) {
+        return function(...args) {
+          try {
+            wasmDb.exec('BEGIN TRANSACTION');
+          } catch (e) {}
+          try {
+            const res = fn(...args);
+            try { wasmDb.exec('COMMIT'); } catch (e) {}
+            saveToDisk();
+            return res;
+          } catch (err) {
+            try { wasmDb.exec('ROLLBACK'); } catch (e) {}
+            throw err;
+          }
+        };
+      },
+      close() {
+        saveToDisk();
+        wasmDb.close();
+      }
+    };
+  } catch (e3) {
+    throw new Error('Failed to load any SQLite engine: ' + e3.message);
+  }
+}
+
+async function initDatabase() {
+  const dbPath = path.join(app.getPath('userData'), 'gulsons.db');
+  const db = await createDatabaseAdapter(dbPath);
+
+  db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = ON');
+
+  // ─── Create Tables ───
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS products (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'Clothes',
+      brand TEXT,
+      size TEXT,
+      color TEXT,
+      fabric TEXT,
+      fragrance_type TEXT,
+      gender TEXT,
+      barcode TEXT,
+      sku TEXT,
+      purchase_price REAL NOT NULL DEFAULT 0,
+      sale_price REAL NOT NULL DEFAULT 0,
+      wholesale_price REAL NOT NULL DEFAULT 0,
+      quantity INTEGER NOT NULL DEFAULT 0,
+      low_stock_threshold INTEGER NOT NULL DEFAULT 5,
+      supplier TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      type TEXT NOT NULL DEFAULT 'Clothes',
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS brands (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS suppliers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      company TEXT,
+      phone TEXT,
+      address TEXT,
+      email TEXT,
+      opening_balance REAL NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'Shop Rent',
+      amount REAL NOT NULL DEFAULT 0,
+      payment_method TEXT NOT NULL DEFAULT 'Cash',
+      date TEXT NOT NULL,
+      description TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_name TEXT NOT NULL DEFAULT 'Admin',
+      action TEXT NOT NULL,
+      details TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS sales (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_no TEXT NOT NULL UNIQUE,
+      customer_name TEXT,
+      customer_phone TEXT,
+      subtotal REAL NOT NULL DEFAULT 0,
+      discount_type TEXT DEFAULT 'flat',
+      discount_value REAL NOT NULL DEFAULT 0,
+      discount_amount REAL NOT NULL DEFAULT 0,
+      tax_amount REAL NOT NULL DEFAULT 0,
+      total_amount REAL NOT NULL DEFAULT 0,
+      payment_method TEXT NOT NULL DEFAULT 'Cash',
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS sale_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sale_id INTEGER NOT NULL,
+      product_id INTEGER NOT NULL,
+      product_name TEXT NOT NULL,
+      product_size TEXT,
+      product_color TEXT,
+      quantity INTEGER NOT NULL,
+      price_at_sale REAL NOT NULL,
+      purchase_price_at_sale REAL NOT NULL DEFAULT 0,
+      line_total REAL NOT NULL,
+      FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
+      FOREIGN KEY (product_id) REFERENCES products(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS customers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      phone TEXT,
+      address TEXT,
+      email TEXT,
+      total_purchases REAL NOT NULL DEFAULT 0,
+      visit_count INTEGER NOT NULL DEFAULT 0,
+      last_visit TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS returns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sale_id INTEGER NOT NULL,
+      sale_invoice_no TEXT,
+      product_id INTEGER NOT NULL,
+      product_name TEXT NOT NULL,
+      quantity INTEGER NOT NULL,
+      refund_amount REAL NOT NULL DEFAULT 0,
+      reason TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (sale_id) REFERENCES sales(id),
+      FOREIGN KEY (product_id) REFERENCES products(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS stock_adjustments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL,
+      product_name TEXT NOT NULL,
+      adjustment_type TEXT NOT NULL,
+      quantity INTEGER NOT NULL,
+      reason TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (product_id) REFERENCES products(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS customer_payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      payment_method TEXT NOT NULL DEFAULT 'Cash',
+      note TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (customer_id) REFERENCES customers(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
+  `);
+
+  // ─── Migrations for Existing Database Files ───
+  const safeAddColumn = (table, colDef) => {
+    try {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${colDef};`);
+    } catch (e) {
+      // Column already exists
+    }
+  };
+
+  safeAddColumn('products', 'brand TEXT');
+  safeAddColumn('products', 'fabric TEXT');
+  safeAddColumn('products', 'fragrance_type TEXT');
+  safeAddColumn('products', 'gender TEXT');
+  safeAddColumn('products', 'sku TEXT');
+  safeAddColumn('products', 'wholesale_price REAL NOT NULL DEFAULT 0');
+  safeAddColumn('customers', 'address TEXT');
+  safeAddColumn('customers', 'email TEXT');
+  safeAddColumn('customers', 'customer_code TEXT');
+  safeAddColumn('customers', 'total_payments REAL NOT NULL DEFAULT 0');
+  safeAddColumn('customers', 'outstanding_balance REAL NOT NULL DEFAULT 0');
+  safeAddColumn('returns', "refund_type TEXT DEFAULT 'Cash Refund'");
+
+  // ─── Create Indexes ───
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+    CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand);
+    CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
+    CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
+    CREATE INDEX IF NOT EXISTS idx_sales_created_at ON sales(created_at);
+    CREATE INDEX IF NOT EXISTS idx_sales_invoice_no ON sales(invoice_no);
+    CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
+  `);
+
+  // ─── Seed Default Data ───
+  const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
+  const insertCategory = db.prepare('INSERT OR IGNORE INTO categories (name, type) VALUES (?, ?)');
+  const insertBrand = db.prepare('INSERT OR IGNORE INTO brands (name) VALUES (?)');
+
+  const seedAll = db.transaction(() => {
+    insertSetting.run('shop_name', "Gul Son's");
+    insertSetting.run('shop_address', 'Main Retail Market');
+    insertSetting.run('shop_phone', '0300-0000000');
+    insertSetting.run('currency_symbol', 'Rs.');
+    insertSetting.run('low_stock_threshold', '5');
+    insertSetting.run('backup_reminder', 'true');
+    insertSetting.run('invoice_prefix', 'GS');
+    insertSetting.run('invoice_next_number', '1');
+
+    // Default Categories
+    const defaultCats = [
+      ['Men\'s Shirts', 'Clothes'],
+      ['T-Shirts', 'Clothes'],
+      ['Shalwar Kameez', 'Clothes'],
+      ['Pants & Jeans', 'Clothes'],
+      ['Women\'s Suits', 'Clothes'],
+      ['Kids Wear', 'Clothes'],
+      ['Men\'s Perfume', 'Perfume'],
+      ['Women\'s Perfume', 'Perfume'],
+      ['Unisex Perfume', 'Perfume'],
+      ['Attar & Oud', 'Perfume'],
+      ['Body Spray', 'Perfume']
+    ];
+    for (const [catName, catType] of defaultCats) {
+      insertCategory.run(catName, catType);
+    }
+
+    // Default Brands
+    const defaultBrands = ['Gul Ahmed', 'J.', 'Sapphire', 'Al-Karam', 'Charcoal', 'Dior', 'Chanel', 'Lattafa', 'Rasasi', 'Junaid Jamshed'];
+    for (const b of defaultBrands) {
+      insertBrand.run(b);
+    }
+  });
+  seedAll();
+
+  return db;
+}
+
+module.exports = { initDatabase };

@@ -1,0 +1,103 @@
+/* ═══════════════════════════════════════════════════════════
+   Gul Son's — Design System Variables
+   Premium dark theme with gold accents
+   ═══════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /* ─── Color Palette ─── */
+  --color-bg-primary: #0a0e1a;
+  --color-bg-secondary: #111627;
+  --color-bg-tertiary: #1a1f35;
+  --color-bg-card: #161b2e;
+  --color-bg-card-hover: #1e2440;
+  --color-bg-input: #1a1f35;
+  --color-bg-modal: #111627;
+  --color-bg-sidebar: #0d1120;
+  --color-bg-titlebar: #080b14;
+
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-light: rgba(255, 255, 255, 0.1);
+  --color-border-focus: #c8a84e;
+
+  /* Accent — Gold */
+  --color-accent: #c8a84e;
+  --color-accent-hover: #d4b95f;
+  --color-accent-light: rgba(200, 168, 78, 0.15);
+  --color-accent-glow: rgba(200, 168, 78, 0.3);
+
+  /* Status Colors */
+  --color-success: #34d399;
+  --color-success-bg: rgba(52, 211, 153, 0.12);
+  --color-warning: #fbbf24;
+  --color-warning-bg: rgba(251, 191, 36, 0.12);
+  --color-danger: #f87171;
+  --color-danger-bg: rgba(248, 113, 113, 0.12);
+  --color-info: #60a5fa;
+  --color-info-bg: rgba(96, 165, 250, 0.12);
+
+  /* Text */
+  --color-text-primary: #f0f0f5;
+  --color-text-secondary: #a0a3b1;
+  --color-text-muted: #6b6e7e;
+  --color-text-accent: #c8a84e;
+
+  /* Category Colors */
+  --color-clothes: #818cf8;
+  --color-clothes-bg: rgba(129, 140, 248, 0.12);
+  --color-perfume: #f472b6;
+  --color-perfume-bg: rgba(244, 114, 182, 0.12);
+
+  /* ─── Typography ─── */
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Outfit', 'Inter', sans-serif;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-md: 0.9375rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+
+  /* ─── Spacing ─── */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* ─── Border Radius ─── */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* ─── Shadows ─── */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 16px 50px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 20px rgba(200, 168, 78, 0.15);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.04);
+
+  /* ─── Transitions ─── */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+  --transition-spring: 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ─── Layout ─── */
+  --sidebar-width: 275px;
+  --sidebar-collapsed-width: 70px;
+  --titlebar-height: 38px;
+  --content-max-width: 1400px;
+}

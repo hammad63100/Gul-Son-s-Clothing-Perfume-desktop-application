@@ -1,0 +1,47 @@
+{
+  "name": "gul-sons-shop-manager",
+  "version": "1.0.0",
+  "description": "Gul Son's — Shop Management Desktop Application for Clothes & Perfume",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "pack": "electron-builder --dir"
+  },
+  "author": "Gul Son's",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "pdfkit": "^0.15.0",
+    "jsbarcode": "^3.11.6",
+    "sql.js": "^1.12.0"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.0"
+  },
+  "build": {
+    "appId": "com.gulsons.shopmanager",
+    "productName": "Gul Sons Shop Manager",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "renderer/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "renderer/assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

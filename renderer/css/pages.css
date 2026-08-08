@@ -1,0 +1,285 @@
+/* ═══════════════════════════════════════════════════════════
+   Gul Son's — Page Specific Styles
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── POS / Billing Page ─── */
+.pos-page-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--titlebar-height));
+  box-sizing: border-box;
+  padding: var(--space-4) var(--space-6);
+  overflow: hidden;
+}
+
+.pos-container {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: var(--space-4);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pos-products-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: var(--space-3);
+  overflow: hidden;
+}
+
+.pos-grid {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-card);
+}
+
+.pos-product-list-table tr.pos-list-row {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.pos-product-list-table tr.pos-list-row:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.pos-product-list-table tr.pos-list-row.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pos-product-card .category-pill {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 10px;
+}
+
+.pos-product-name {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.pos-product-variant {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.pos-product-price {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-base);
+  color: var(--color-accent);
+  margin-top: auto;
+}
+
+.pos-product-stock {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.pos-cart-panel {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-shadow: var(--shadow-card);
+}
+
+.pos-cart-header {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pos-cart-items {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pos-cart-items table.data-table {
+  width: 100% !important;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.pos-cart-items table.data-table th,
+.pos-cart-items table.data-table td {
+  padding: 6px 3px !important;
+  font-size: 11px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pos-cart-items table.data-table th:nth-child(1),
+.pos-cart-items table.data-table td:nth-child(1) {
+  width: 28%;
+}
+
+.pos-cart-items table.data-table th:nth-child(2),
+.pos-cart-items table.data-table td:nth-child(2) {
+  width: 20%;
+}
+
+.pos-cart-items table.data-table th:nth-child(3),
+.pos-cart-items table.data-table td:nth-child(3) {
+  width: 22%;
+}
+
+.pos-cart-items table.data-table th:nth-child(4),
+.pos-cart-items table.data-table td:nth-child(4) {
+  width: 15%;
+}
+
+.pos-cart-items table.data-table th:nth-child(5),
+.pos-cart-items table.data-table td:nth-child(5) {
+  width: 15%;
+}
+
+.cart-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.cart-item-info {
+  flex: 1;
+}
+
+.cart-item-name {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.cart-item-details {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.cart-item-qty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+}
+
+.cart-item-qty button {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+}
+
+.cart-item-qty button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-primary);
+}
+
+.cart-item-qty span {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  min-width: 20px;
+  text-align: center;
+}
+
+.cart-item-price {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+}
+
+.pos-cart-footer {
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.summary-row.total {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  border-top: 1px dashed var(--color-border-light);
+  padding-top: var(--space-2);
+
+  .amount {
+    color: var(--color-accent);
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+  }
+}
+
+/* ─── Dashboard Specifics ─── */
+.top-products-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.top-product-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.rank-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
