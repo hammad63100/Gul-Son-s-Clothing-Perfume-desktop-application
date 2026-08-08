@@ -12,6 +12,9 @@ window.InventoryPage = {
 
   async render(container, defaultTab = 'all-products') {
     this.activeTab = defaultTab;
+    // Each navigation entry starts with a fresh visible filter state.
+    this.currentFilters.search = '';
+    this.currentFilters.category = '';
 
     container.innerHTML = `
       <div class="page-container animate-fade-in">

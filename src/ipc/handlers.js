@@ -1,4 +1,4 @@
-const { dialog } = require('electron');
+const { dialog, shell } = require('electron');
 const { productsDB } = require('../database/products');
 const { salesDB } = require('../database/sales');
 const { returnsDB } = require('../database/returns');
@@ -26,8 +26,10 @@ function registerHandlers(db, ipcMain) {
   // ─── Enhanced Dashboard Summary ───
   ipcMain.handle('dashboard:getSummary', () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
       const now = new Date();
+      // Sales are stored with SQLite's localtime; do not use UTC here because
+      // it can make today's dashboard appear empty around midnight in Pakistan.
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const year = now.getFullYear();
       const month = now.getMonth() + 1;
 
@@ -102,7 +104,7 @@ function registerHandlers(db, ipcMain) {
       for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         let daySummary = { total_revenue: 0, total_profit: 0 };
         try { daySummary = sales.getDailySummary(dateStr) || daySummary; } catch (e) {}
         let dayExp = 0;
@@ -271,7 +273,11 @@ function registerHandlers(db, ipcMain) {
       filters: [{ name: 'PDF Files', extensions: ['pdf'] }],
     });
     if (!result.canceled && result.filePath) {
-      return await generateInvoicePDF(saleData, settingsData, result.filePath);
+      const pdfResult = await generateInvoicePDF(saleData, settingsData, result.filePath);
+      // Open the finished PDF with the system's PDF viewer so the cashier can
+      // print it immediately after saving it.
+      await shell.openPath(result.filePath);
+      return pdfResult;
     }
     return null;
   });

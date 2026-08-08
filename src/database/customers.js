@@ -26,11 +26,14 @@ function customersDB(db) {
       // Match criteria for this customer's sales
       let matchClause = '';
       const matchParams = [];
+      // A customer may buy again without providing a phone number, or their
+      // name may differ only in letter case. Include both identity signals so
+      // the complete purchase history is shown.
       if (customer.phone) {
-        matchClause = 's.customer_phone = ?';
-        matchParams.push(customer.phone);
+        matchClause = '(s.customer_phone = ? OR LOWER(TRIM(s.customer_name)) = LOWER(TRIM(?)))';
+        matchParams.push(customer.phone, customer.name);
       } else {
-        matchClause = 's.customer_name = ? AND s.customer_phone IS NULL';
+        matchClause = 'LOWER(TRIM(s.customer_name)) = LOWER(TRIM(?))';
         matchParams.push(customer.name);
       }
 

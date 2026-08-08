@@ -5,9 +5,17 @@ function productsDB(db) {
       const params = [];
 
       if (filters.search) {
-        query += ' AND (name LIKE ? OR barcode LIKE ? OR supplier LIKE ?)';
+        // Search every user-visible product identifier/attribute. The Search
+        // page is also used for SKU, brand and variant lookups.
+        query += ` AND (
+          LOWER(name) LIKE LOWER(?) OR LOWER(COALESCE(barcode, '')) LIKE LOWER(?) OR
+          LOWER(COALESCE(sku, '')) LIKE LOWER(?) OR LOWER(COALESCE(brand, '')) LIKE LOWER(?) OR
+          LOWER(COALESCE(supplier, '')) LIKE LOWER(?) OR LOWER(COALESCE(size, '')) LIKE LOWER(?) OR
+          LOWER(COALESCE(color, '')) LIKE LOWER(?) OR LOWER(COALESCE(fabric, '')) LIKE LOWER(?) OR
+          LOWER(COALESCE(fragrance_type, '')) LIKE LOWER(?) OR LOWER(COALESCE(gender, '')) LIKE LOWER(?)
+        )`;
         const s = `%${filters.search}%`;
-        params.push(s, s, s);
+        params.push(s, s, s, s, s, s, s, s, s, s);
       }
       if (filters.category) {
         query += ' AND category = ?';
