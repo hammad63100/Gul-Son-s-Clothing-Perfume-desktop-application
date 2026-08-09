@@ -5,6 +5,7 @@ const { registerHandlers } = require('./src/ipc/handlers');
 
 let mainWindow;
 let db;
+let hasSingleInstanceLock = false;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -76,6 +77,20 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  // Running two copies against the same sql.js database lets the last copy
+  // overwrite the first copy's in-memory state. Keep one owner of the file.
+  hasSingleInstanceLock = app.requestSingleInstanceLock();
+  if (!hasSingleInstanceLock) {
+    app.quit();
+    return;
+  }
+
+  app.on('second-instance', () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  });
+
   // Initialize database (supports native node:sqlite, better-sqlite3, or WASM sql.js)
   db = await initDatabase();
 

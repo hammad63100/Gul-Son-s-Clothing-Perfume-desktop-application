@@ -24,6 +24,9 @@ function productsDB(db) {
       if (filters.lowStock) {
         query += ' AND quantity <= low_stock_threshold';
       }
+      if (filters.outOfStock) {
+        query += ' AND quantity <= 0';
+      }
       if (filters.size) {
         query += ' AND size = ?';
         params.push(filters.size);
@@ -43,15 +46,20 @@ function productsDB(db) {
 
     add(data) {
       const stmt = db.prepare(`
-        INSERT INTO products (name, category, size, color, barcode, purchase_price, sale_price, quantity, low_stock_threshold, supplier)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO products (name, category, brand, size, color, fabric, fragrance_type, gender, barcode, sku, purchase_price, sale_price, quantity, low_stock_threshold, supplier)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       const result = stmt.run(
         data.name,
         data.category || 'Clothes',
+        data.brand || null,
         data.size || null,
         data.color || null,
+        data.fabric || null,
+        data.fragrance_type || null,
+        data.gender || null,
         data.barcode || null,
+        data.sku || data.barcode || null,
         data.purchase_price || 0,
         data.sale_price || 0,
         data.quantity || 0,
@@ -65,7 +73,7 @@ function productsDB(db) {
       const fields = [];
       const params = [];
 
-      const allowedFields = ['name', 'category', 'size', 'color', 'barcode', 'purchase_price', 'sale_price', 'quantity', 'low_stock_threshold', 'supplier'];
+      const allowedFields = ['name', 'category', 'brand', 'size', 'color', 'fabric', 'fragrance_type', 'gender', 'barcode', 'sku', 'purchase_price', 'sale_price', 'quantity', 'low_stock_threshold', 'supplier'];
       for (const field of allowedFields) {
         if (data[field] !== undefined) {
           fields.push(`${field} = ?`);

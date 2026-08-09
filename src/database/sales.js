@@ -48,7 +48,10 @@ function salesDB(db) {
 
         // Fetch created sale record to get guaranteed ID
         const createdSale = db.prepare('SELECT * FROM sales WHERE invoice_no = ?').get(invoiceNo);
-        const saleId = createdSale ? createdSale.id : 0;
+        if (!createdSale) {
+          throw new Error(`Invoice ${invoiceNo} could not be read back after saving`);
+        }
+        const saleId = createdSale.id;
 
         // Insert sale items and decrement stock
         const insertItem = db.prepare(`

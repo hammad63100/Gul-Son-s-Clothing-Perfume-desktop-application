@@ -3,8 +3,13 @@
 window.FinancePage = {
   activeTab: 'expenses',
 
+  localDate() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  },
+
   async render(container) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.localDate();
 
     container.innerHTML = `
       <div class="page-container animate-fade-in">
@@ -51,7 +56,7 @@ window.FinancePage = {
 
     const settings = await window.api.settings.get();
     const curr = settings.currency_symbol || 'Rs.';
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.localDate();
 
     try {
       if (this.activeTab === 'expenses') {
@@ -211,7 +216,7 @@ window.FinancePage = {
           </div>
           <div class="form-group">
             <label class="form-label">Date *</label>
-            <input type="date" class="form-input" id="exp-date" value="${new Date().toISOString().split('T')[0]}" required>
+            <input type="date" class="form-input" id="exp-date" value="${this.localDate()}" required>
           </div>
         </div>
 

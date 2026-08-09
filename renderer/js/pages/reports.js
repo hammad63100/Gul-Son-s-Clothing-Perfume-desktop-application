@@ -3,8 +3,13 @@
 window.ReportsPage = {
   activeTab: 'daily',
 
+  localDate() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  },
+
   async render(container) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.localDate();
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
@@ -58,7 +63,7 @@ window.ReportsPage = {
     document.getElementById(`rpt-tab-${tabName}`).classList.add('active');
 
     const controls = document.getElementById('rpt-date-controls');
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.localDate();
     const now = new Date();
 
     if (tabName === 'daily') {
@@ -111,7 +116,7 @@ window.ReportsPage = {
     try {
       if (this.activeTab === 'daily') {
         const dateInput = document.getElementById('rpt-daily-date');
-        const dateStr = dateInput ? dateInput.value : new Date().toISOString().split('T')[0];
+        const dateStr = dateInput ? dateInput.value : this.localDate();
         const data = await window.api.reports.getDaily(dateStr);
         this.currentReportData = { type: 'daily', data };
 

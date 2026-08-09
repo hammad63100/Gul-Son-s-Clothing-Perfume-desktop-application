@@ -70,35 +70,54 @@ async function createDatabaseAdapter(dbPath) {
       wasmDb = new SQL.Database();
     }
 
+    let transactionDepth = 0;
+    let dirty = false;
+
     const saveToDisk = () => {
       try {
         const data = wasmDb.export();
         const buffer = Buffer.from(data);
-        fs.writeFileSync(dbPath, buffer);
+        // Write and replace atomically so a crash or competing file operation
+        // cannot leave a partially-written database behind.
+        const tempPath = `${dbPath}.${process.pid}.tmp`;
+        fs.writeFileSync(tempPath, buffer);
+        if (process.platform === 'win32' && fs.existsSync(dbPath)) {
+          // Windows does not replace an existing file with renameSync().
+          fs.copyFileSync(tempPath, dbPath);
+          fs.unlinkSync(tempPath);
+        } else {
+          fs.renameSync(tempPath, dbPath);
+        }
+        dirty = false;
       } catch (err) {
+        try {
+          const tempPath = `${dbPath}.${process.pid}.tmp`;
+          if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+        } catch (cleanupError) {}
         console.error('Failed to save WASM SQLite database to disk:', err);
       }
     };
 
     const execSelect = (sql, params = []) => {
+      let stmt;
       try {
         let boundParams = params;
         if (params.length === 1 && Array.isArray(params[0])) {
           boundParams = params[0];
         }
-        const results = wasmDb.exec(sql, boundParams);
-        if (!results || results.length === 0) return [];
-        const cols = results[0].columns;
-        return results[0].values.map(rowValues => {
-          const obj = {};
-          cols.forEach((col, idx) => {
-            obj[col] = rowValues[idx];
-          });
-          return obj;
-        });
+        // sql.js db.exec() does not bind parameters reliably. Using a
+        // prepared statement here is required for every parameterized SELECT
+        // (including reading the sale immediately after inserting it).
+        stmt = wasmDb.prepare(sql);
+        if (boundParams && boundParams.length > 0) stmt.bind(boundParams);
+        const rows = [];
+        while (stmt.step()) rows.push(stmt.getAsObject());
+        return rows;
       } catch (err) {
         console.error('WASM SQL Exec Error:', err.message, 'Query:', sql, 'Params:', params);
         return [];
+      } finally {
+        if (stmt) stmt.free();
       }
     };
 
@@ -108,7 +127,8 @@ async function createDatabaseAdapter(dbPath) {
       },
       exec(sql) {
         wasmDb.exec(sql);
-        saveToDisk();
+        dirty = true;
+        if (transactionDepth === 0) saveToDisk();
       },
       prepare(sql) {
         return {
@@ -119,7 +139,8 @@ async function createDatabaseAdapter(dbPath) {
             } else {
               wasmDb.run(sql);
             }
-            saveToDisk();
+            dirty = true;
+            if (transactionDepth === 0) saveToDisk();
             let lastInsertRowid = 0;
             try {
               const res = wasmDb.exec("SELECT last_insert_rowid() as id");
@@ -138,22 +159,26 @@ async function createDatabaseAdapter(dbPath) {
       },
       transaction(fn) {
         return function(...args) {
+          transactionDepth += 1;
           try {
             wasmDb.exec('BEGIN TRANSACTION');
           } catch (e) {}
           try {
             const res = fn(...args);
             try { wasmDb.exec('COMMIT'); } catch (e) {}
-            saveToDisk();
+            transactionDepth -= 1;
+            if (transactionDepth === 0 && dirty) saveToDisk();
             return res;
           } catch (err) {
             try { wasmDb.exec('ROLLBACK'); } catch (e) {}
+            transactionDepth -= 1;
+            if (transactionDepth === 0) dirty = false;
             throw err;
           }
         };
       },
       close() {
-        saveToDisk();
+        if (dirty) saveToDisk();
         wasmDb.close();
       }
     };

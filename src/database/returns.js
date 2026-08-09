@@ -58,27 +58,25 @@ function returnsDB(db) {
     },
 
     processFullInvoice(saleId, reason, customReason = null, refundType = 'Cash Refund') {
-      const txn = db.transaction(() => {
-        const sale = db.prepare('SELECT * FROM sales WHERE id = ?').get(saleId);
-        if (!sale) throw new Error('Sale not found');
+      const sale = db.prepare('SELECT * FROM sales WHERE id = ?').get(saleId);
+      if (!sale) throw new Error('Sale not found');
 
-        const items = db.prepare('SELECT * FROM sale_items WHERE sale_id = ?').all(saleId);
-        let totalRefund = 0;
+      // process() already owns a transaction. Calling it from another
+      // transaction creates a nested BEGIN, which sql.js rejects.
+      const items = db.prepare('SELECT * FROM sale_items WHERE sale_id = ?').all(saleId);
+      let totalRefund = 0;
 
-        for (const item of items) {
-          const alreadyReturned = db.prepare('SELECT COALESCE(SUM(quantity), 0) as qty FROM returns WHERE sale_id = ? AND product_id = ?').get(saleId, item.product_id);
-          const maxReturnable = item.quantity - alreadyReturned.qty;
+      for (const item of items) {
+        const alreadyReturned = db.prepare('SELECT COALESCE(SUM(quantity), 0) as qty FROM returns WHERE sale_id = ? AND product_id = ?').get(saleId, item.product_id);
+        const maxReturnable = item.quantity - (alreadyReturned?.qty || 0);
 
-          if (maxReturnable > 0) {
-            this.process(saleId, item.product_id, maxReturnable, reason, customReason, refundType);
-            totalRefund += item.price_at_sale * maxReturnable;
-          }
+        if (maxReturnable > 0) {
+          this.process(saleId, item.product_id, maxReturnable, reason, customReason, refundType);
+          totalRefund += item.price_at_sale * maxReturnable;
         }
+      }
 
-        return { success: true, invoice_no: sale.invoice_no, totalRefund };
-      });
-
-      return txn();
+      return { success: true, invoice_no: sale.invoice_no, totalRefund };
     },
 
     getAll(filters = {}) {

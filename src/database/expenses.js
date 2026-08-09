@@ -1,4 +1,9 @@
 function expensesDB(db) {
+  const localDate = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
   return {
     getAll(filters = {}) {
       let query = 'SELECT * FROM expenses';
@@ -41,7 +46,7 @@ function expensesDB(db) {
         data.category || 'Shop Rent',
         data.amount || 0,
         data.payment_method || 'Cash',
-        data.date || new Date().toISOString().split('T')[0],
+        data.date || localDate(),
         data.description || null
       );
       return { id: res.lastInsertRowid, ...data };

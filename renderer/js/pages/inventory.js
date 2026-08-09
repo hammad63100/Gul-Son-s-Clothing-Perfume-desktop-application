@@ -10,6 +10,11 @@ window.InventoryPage = {
     outOfStock: false
   },
 
+  localDate() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  },
+
   async render(container, defaultTab = 'all-products') {
     this.activeTab = defaultTab;
     // Each navigation entry starts with a fresh visible filter state.
@@ -479,7 +484,7 @@ window.InventoryPage = {
     if (qty <= 0) return toast.error('Quantity must be greater than 0');
 
     try {
-      await window.api.products.stockIn(id, qty, supplier, new Date().toISOString().split('T')[0]);
+      await window.api.products.stockIn(id, qty, supplier, this.localDate());
       toast.success(`Added ${qty} pieces to stock!`);
       modal.hide();
       this.loadProducts();
