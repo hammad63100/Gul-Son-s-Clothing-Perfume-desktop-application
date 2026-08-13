@@ -2,6 +2,8 @@ function returnsDB(db) {
   return {
     process(saleId, productId, quantity, reason, customReason = null, refundType = 'Cash Refund') {
       const txn = db.transaction(() => {
+        quantity = Number(quantity);
+        if (!Number.isInteger(quantity) || quantity <= 0) throw new Error('Return quantity must be a whole number greater than zero');
         const sale = db.prepare('SELECT * FROM sales WHERE id = ?').get(saleId);
         if (!sale) throw new Error('Sale not found');
 
@@ -27,9 +29,6 @@ function returnsDB(db) {
         // Auto-restore stock
         db.prepare("UPDATE products SET quantity = quantity + ?, updated_at = datetime('now', 'localtime') WHERE id = ?").run(quantity, productId);
 
-        // Adjust sale total
-        db.prepare('UPDATE sales SET total_amount = MAX(0, total_amount - ?) WHERE id = ?').run(refundAmount, saleId);
-
         // Adjust customer total purchase volume / balance if customer exists
         if (sale.customer_name || sale.customer_phone) {
           const cust = sale.customer_phone
@@ -37,7 +36,11 @@ function returnsDB(db) {
             : db.prepare('SELECT * FROM customers WHERE LOWER(name) = LOWER(?)').get(sale.customer_name);
 
           if (cust) {
-            db.prepare('UPDATE customers SET total_purchases = MAX(0, total_purchases - ?) WHERE id = ?').run(refundAmount, cust.id);
+            db.prepare(`UPDATE customers
+              SET total_purchases = MAX(0, total_purchases - ?),
+                  outstanding_balance = CASE WHEN ? = 'Credit / Unpaid'
+                    THEN MAX(0, outstanding_balance - ?) ELSE outstanding_balance END
+              WHERE id = ?`).run(refundAmount, sale.payment_method, refundAmount, cust.id);
           }
         }
 

@@ -1,4 +1,16 @@
 function productsDB(db) {
+  const positiveInteger = (value, label) => {
+    const number = Number(value);
+    if (!Number.isInteger(number) || number <= 0) throw new Error(`${label} must be a whole number greater than zero`);
+    return number;
+  };
+
+  const nonNegativeNumber = (value, label) => {
+    const number = Number(value);
+    if (!Number.isFinite(number) || number < 0) throw new Error(`${label} must be a valid non-negative number`);
+    return number;
+  };
+
   return {
     getAll(filters = {}) {
       let query = 'SELECT * FROM products WHERE is_active = 1';
@@ -45,12 +57,16 @@ function productsDB(db) {
     },
 
     add(data) {
+      const name = String(data.name || '').trim();
+      if (!name) throw new Error('Product name is required');
+      const quantity = nonNegativeNumber(data.quantity ?? 0, 'Quantity');
+      if (!Number.isInteger(quantity)) throw new Error('Quantity must be a whole number');
       const stmt = db.prepare(`
         INSERT INTO products (name, category, brand, size, color, fabric, fragrance_type, gender, barcode, sku, purchase_price, sale_price, quantity, low_stock_threshold, supplier)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       const result = stmt.run(
-        data.name,
+        name,
         data.category || 'Clothes',
         data.brand || null,
         data.size || null,
@@ -60,10 +76,10 @@ function productsDB(db) {
         data.gender || null,
         data.barcode || null,
         data.sku || data.barcode || null,
-        data.purchase_price || 0,
-        data.sale_price || 0,
-        data.quantity || 0,
-        data.low_stock_threshold || 5,
+        nonNegativeNumber(data.purchase_price ?? 0, 'Purchase price'),
+        nonNegativeNumber(data.sale_price ?? 0, 'Sale price'),
+        quantity,
+        nonNegativeNumber(data.low_stock_threshold ?? 5, 'Low stock threshold'),
         data.supplier || null
       );
       return { id: result.lastInsertRowid, ...data };
@@ -76,6 +92,14 @@ function productsDB(db) {
       const allowedFields = ['name', 'category', 'brand', 'size', 'color', 'fabric', 'fragrance_type', 'gender', 'barcode', 'sku', 'purchase_price', 'sale_price', 'quantity', 'low_stock_threshold', 'supplier'];
       for (const field of allowedFields) {
         if (data[field] !== undefined) {
+          if (['purchase_price', 'sale_price', 'low_stock_threshold'].includes(field)) {
+            data[field] = nonNegativeNumber(data[field], field.replace('_', ' '));
+          }
+          if (field === 'quantity') {
+            data[field] = nonNegativeNumber(data[field], 'Quantity');
+            if (!Number.isInteger(data[field])) throw new Error('Quantity must be a whole number');
+          }
+          if (field === 'name' && !String(data[field]).trim()) throw new Error('Product name is required');
           fields.push(`${field} = ?`);
           params.push(data[field]);
         }
@@ -98,10 +122,11 @@ function productsDB(db) {
     },
 
     stockIn(id, quantity, supplier, date) {
+      quantity = positiveInteger(quantity, 'Stock-in quantity');
       const txn = db.transaction(() => {
-        db.prepare("UPDATE products SET quantity = quantity + ?, updated_at = datetime('now', 'localtime') WHERE id = ?").run(quantity, id);
-        
         const product = this.get(id);
+        if (!product || !product.is_active) throw new Error('Active product not found');
+        db.prepare("UPDATE products SET quantity = quantity + ?, updated_at = datetime('now', 'localtime') WHERE id = ?").run(quantity, id);
         db.prepare(`
           INSERT INTO stock_adjustments (product_id, product_name, adjustment_type, quantity, reason)
           VALUES (?, ?, 'stock_in', ?, ?)
@@ -117,8 +142,11 @@ function productsDB(db) {
     },
 
     adjustStock(id, quantity, reason) {
+      quantity = positiveInteger(quantity, 'Adjustment quantity');
       const txn = db.transaction(() => {
         const product = this.get(id);
+        if (!product || !product.is_active) throw new Error('Active product not found');
+        if (product.quantity < quantity) throw new Error(`Cannot remove ${quantity} units; only ${product.quantity} available`);
         db.prepare("UPDATE products SET quantity = quantity - ?, updated_at = datetime('now', 'localtime') WHERE id = ?").run(quantity, id);
         
         db.prepare(`

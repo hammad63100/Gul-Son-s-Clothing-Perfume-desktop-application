@@ -37,6 +37,9 @@ function expensesDB(db) {
     },
 
     add(data) {
+      const amount = Number(data.amount);
+      if (!String(data.title || '').trim()) throw new Error('Expense title is required');
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error('Expense amount must be greater than zero');
       const stmt = db.prepare(`
         INSERT INTO expenses (title, category, amount, payment_method, date, description)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -44,7 +47,7 @@ function expensesDB(db) {
       const res = stmt.run(
         data.title,
         data.category || 'Shop Rent',
-        data.amount || 0,
+        amount,
         data.payment_method || 'Cash',
         data.date || localDate(),
         data.description || null

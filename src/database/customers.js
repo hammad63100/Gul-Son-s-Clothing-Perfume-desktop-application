@@ -91,6 +91,11 @@ function customersDB(db) {
 
     addPayment(id, amount, method, note) {
       return db.transaction(() => {
+        amount = Number(amount);
+        if (!Number.isFinite(amount) || amount <= 0) throw new Error('Payment amount must be greater than zero');
+        const customer = this.get(id);
+        if (!customer) throw new Error('Customer not found');
+        if (amount > Number(customer.outstanding_balance || 0)) throw new Error('Payment cannot exceed the outstanding balance');
         // Log payment
         db.prepare(`
           INSERT INTO customer_payments (customer_id, amount, payment_method, note) 

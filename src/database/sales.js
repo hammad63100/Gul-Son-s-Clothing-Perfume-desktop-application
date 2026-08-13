@@ -10,22 +10,38 @@ function salesDB(db) {
 
     create(saleData, items) {
       const txn = db.transaction(() => {
+        if (!Array.isArray(items) || items.length === 0) throw new Error('A sale must contain at least one item');
+        if (!saleData || typeof saleData !== 'object') throw new Error('Sale details are required');
         const invoiceNo = this.getNextInvoiceNo();
 
         // Calculate totals
         let subtotal = 0;
+        const requestedQuantities = new Map();
         for (const item of items) {
-          subtotal += (item.price_at_sale || 0) * (item.quantity || 1);
+          const quantity = Number(item.quantity);
+          const price = Number(item.price_at_sale);
+          if (!Number.isInteger(quantity) || quantity <= 0) throw new Error('Each item quantity must be a whole number greater than zero');
+          if (!Number.isFinite(price) || price < 0) throw new Error('Each item price must be a valid non-negative number');
+          const product = db.prepare('SELECT * FROM products WHERE id = ? AND is_active = 1').get(item.product_id);
+          if (!product) throw new Error('One or more products are unavailable');
+          const requested = (requestedQuantities.get(product.id) || 0) + quantity;
+          if (product.quantity < requested) throw new Error(`Insufficient stock for ${product.name}. Available: ${product.quantity}`);
+          requestedQuantities.set(product.id, requested);
+          subtotal += price * quantity;
         }
 
+        const discountValue = Number(saleData.discount_value ?? 0);
+        if (!Number.isFinite(discountValue) || discountValue < 0) throw new Error('Discount must be a valid non-negative number');
         let discountAmount = 0;
         if (saleData.discount_type === 'percentage') {
-          discountAmount = subtotal * ((saleData.discount_value || 0) / 100);
+          if (discountValue > 100) throw new Error('Percentage discount cannot exceed 100%');
+          discountAmount = subtotal * (discountValue / 100);
         } else {
-          discountAmount = saleData.discount_value || 0;
+          discountAmount = Math.min(discountValue, subtotal);
         }
 
-        const taxAmount = saleData.tax_amount || 0;
+        const taxAmount = Number(saleData.tax_amount ?? 0);
+        if (!Number.isFinite(taxAmount) || taxAmount < 0) throw new Error('Tax must be a valid non-negative number');
         const totalAmount = Math.max(0, subtotal - discountAmount + taxAmount);
 
         // Insert sale
@@ -38,7 +54,7 @@ function salesDB(db) {
           saleData.customer_phone || null,
           subtotal,
           saleData.discount_type || 'flat',
-          saleData.discount_value || 0,
+          discountValue,
           discountAmount,
           taxAmount,
           totalAmount,
@@ -62,7 +78,7 @@ function salesDB(db) {
         const decrementStock = db.prepare("UPDATE products SET quantity = MAX(0, quantity - ?), updated_at = datetime('now', 'localtime') WHERE id = ?");
 
         for (const item of items) {
-          const product = db.prepare('SELECT * FROM products WHERE id = ?').get(item.product_id);
+          const product = db.prepare('SELECT * FROM products WHERE id = ? AND is_active = 1').get(item.product_id);
           insertItem.run(
             saleId,
             item.product_id,
@@ -123,7 +139,8 @@ function salesDB(db) {
 
         // Increment next invoice number
         const currentNext = db.prepare("SELECT value FROM settings WHERE key = 'invoice_next_number'").get();
-        const nextVal = currentNext ? parseInt(currentNext.value) + 1 : 2;
+        const currentValue = currentNext ? Number.parseInt(currentNext.value, 10) : 1;
+        const nextVal = Number.isSafeInteger(currentValue) && currentValue > 0 ? currentValue + 1 : 2;
         db.prepare("UPDATE settings SET value = ? WHERE key = 'invoice_next_number'").run(String(nextVal));
 
         return { saleId, invoice_no: invoiceNo, totalAmount };
