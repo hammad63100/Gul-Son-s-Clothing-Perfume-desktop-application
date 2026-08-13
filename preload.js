@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('api', {
   // ─── Dashboard ───
   dashboard: {
     getSummary: () => ipcRenderer.invoke('dashboard:getSummary'),
+    getFinancialSummary: (period, value) => ipcRenderer.invoke('dashboard:getFinancialSummary', period, value),
   },
 
   // ─── Products / Inventory ───

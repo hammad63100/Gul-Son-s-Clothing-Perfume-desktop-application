@@ -166,6 +166,31 @@ function registerHandlers(db, ipcMain) {
     }
   });
 
+  // Income and outcome for a selected calendar day or month. Returns are an
+  // outcome on the day they are processed, so historical cash flow is clear.
+  ipcMain.handle('dashboard:getFinancialSummary', (_, period, value) => {
+    const validDate = date => /^\d{4}-\d{2}-\d{2}$/.test(date);
+    const validMonth = month => /^\d{4}-\d{2}$/.test(month);
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const currentMonth = today.slice(0, 7);
+    const monthly = period === 'monthly';
+    const selected = monthly ? (validMonth(value) ? value : currentMonth) : (validDate(value) ? value : today);
+    const start = monthly ? `${selected}-01` : selected;
+    const end = monthly ? `${selected}-31 23:59:59` : `${selected} 23:59:59`;
+    const sales = db.prepare('SELECT COALESCE(SUM(total_amount), 0) AS total FROM sales WHERE created_at >= ? AND created_at <= ?').get(start, end).total;
+    const refunds = db.prepare('SELECT COALESCE(SUM(refund_amount), 0) AS total FROM returns WHERE created_at >= ? AND created_at <= ?').get(start, end).total;
+    const expenseTotal = db.prepare('SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE date >= ? AND date <= ?').get(start.slice(0, 10), end.slice(0, 10)).total;
+    const salesProfit = db.prepare(`SELECT COALESCE(SUM(si.quantity * (si.price_at_sale - si.purchase_price_at_sale)), 0) AS total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE s.created_at >= ? AND s.created_at <= ?`).get(start, end).total;
+    const returnedProfit = db.prepare(`SELECT COALESCE(SUM(r.quantity * (si.price_at_sale - si.purchase_price_at_sale)), 0) AS total FROM returns r JOIN sale_items si ON si.sale_id = r.sale_id AND si.product_id = r.product_id WHERE r.created_at >= ? AND r.created_at <= ?`).get(start, end).total;
+    const income = Number(sales) - Number(refunds);
+    return {
+      period: monthly ? 'monthly' : 'daily', value: selected, grossIncome: Number(sales), refunds: Number(refunds), expenses: Number(expenseTotal),
+      income, outcome: Number(refunds) + Number(expenseTotal), netCashFlow: income - Number(expenseTotal),
+      operatingProfit: Number(salesProfit) - Number(returnedProfit) - Number(expenseTotal), currency: settings.getValue('currency_symbol') || 'Rs.',
+    };
+  });
+
   // ─── Products ───
   ipcMain.handle('products:getAll', (_, filters) => products.getAll(filters));
   ipcMain.handle('products:get', (_, id) => products.get(id));

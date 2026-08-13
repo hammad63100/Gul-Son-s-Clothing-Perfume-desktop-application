@@ -17,6 +17,22 @@ window.DashboardPage = {
           </div>
         </div>
 
+        <div class="card" style="margin-bottom:var(--space-5);">
+          <div class="card-header" style="align-items:flex-end; gap:var(--space-3); flex-wrap:wrap;">
+            <div><h3 class="card-title">Income & Outcome</h3><p class="card-subtitle" id="dash-financial-period">Selected period</p></div>
+            <div class="toolbar" style="margin:0; gap:var(--space-2);">
+              <select class="form-select" id="dash-financial-period-type" onchange="DashboardPage.changeFinancialPeriod()" style="width:120px;"><option value="daily">Daily</option><option value="monthly">Monthly</option></select>
+              <input class="form-input" id="dash-financial-period-value" type="date" onchange="DashboardPage.loadFinancialSummary()" style="width:155px;">
+            </div>
+          </div>
+          <div class="grid grid-4 gap-4" style="margin-top:var(--space-3);">
+            <div class="stat-card" style="padding:var(--space-4);"><div class="stat-label">Net Income</div><div class="stat-value" id="dash-financial-income">…</div><small id="dash-financial-gross" style="color:var(--color-text-muted);"></small></div>
+            <div class="stat-card" style="padding:var(--space-4);"><div class="stat-label">Outcome</div><div class="stat-value" id="dash-financial-outcome" style="color:var(--color-danger);">…</div><small id="dash-financial-outcome-detail" style="color:var(--color-text-muted);"></small></div>
+            <div class="stat-card" style="padding:var(--space-4);"><div class="stat-label">Net Cash Flow</div><div class="stat-value" id="dash-financial-cashflow">…</div><small>Income less expenses</small></div>
+            <div class="stat-card" style="padding:var(--space-4);"><div class="stat-label">Operating Profit</div><div class="stat-value" id="dash-financial-profit">…</div><small>After product costs and expenses</small></div>
+          </div>
+        </div>
+
         <!-- ─── Financial Metrics (Row 1) ─── -->
         <div class="grid grid-4 gap-4">
           <div class="stat-card">
@@ -256,7 +272,40 @@ window.DashboardPage = {
       </div>
     `;
 
-    await this.loadData();
+    document.getElementById('dash-financial-period-value').value = this.localDate();
+    await Promise.all([this.loadData(), this.loadFinancialSummary()]);
+  },
+
+  localDate() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  },
+
+  changeFinancialPeriod() {
+    const type = document.getElementById('dash-financial-period-type').value;
+    const input = document.getElementById('dash-financial-period-value');
+    input.type = type === 'monthly' ? 'month' : 'date';
+    input.value = type === 'monthly' ? this.localDate().slice(0, 7) : this.localDate();
+    this.loadFinancialSummary();
+  },
+
+  async loadFinancialSummary() {
+    try {
+      const type = document.getElementById('dash-financial-period-type').value;
+      const data = await window.api.dashboard.getFinancialSummary(type, document.getElementById('dash-financial-period-value').value);
+      const currency = data.currency || 'Rs.';
+      document.getElementById('dash-financial-period').textContent = `${type === 'monthly' ? 'Monthly' : 'Daily'} summary: ${data.value}`;
+      document.getElementById('dash-financial-income').textContent = formatters.currency(data.income, currency);
+      document.getElementById('dash-financial-gross').textContent = `Gross sales: ${formatters.currency(data.grossIncome, currency)} | Returns: ${formatters.currency(data.refunds, currency)}`;
+      document.getElementById('dash-financial-outcome').textContent = formatters.currency(data.outcome, currency);
+      document.getElementById('dash-financial-outcome-detail').textContent = `Expenses: ${formatters.currency(data.expenses, currency)} | Refunds: ${formatters.currency(data.refunds, currency)}`;
+      const cash = document.getElementById('dash-financial-cashflow');
+      cash.textContent = formatters.currency(data.netCashFlow, currency);
+      cash.style.color = data.netCashFlow < 0 ? 'var(--color-danger)' : 'var(--color-success)';
+      const profit = document.getElementById('dash-financial-profit');
+      profit.textContent = formatters.currency(data.operatingProfit, currency);
+      profit.style.color = data.operatingProfit < 0 ? 'var(--color-danger)' : 'var(--color-success)';
+    } catch (err) { console.error(err); toast.error('Failed to load income and outcome summary'); }
   },
 
   async loadData() {
