@@ -604,9 +604,15 @@ window.POSPage = {
   shareWhatsApp() {
     if (this.cart.length === 0) return toast.warning('Cart is empty');
     const custName = document.getElementById('pos-cust-name').value.trim() || 'Valued Customer';
+    const custPhone = document.getElementById('pos-cust-phone').value.trim();
+    if (!custPhone) return toast.error('Enter the customer WhatsApp number first');
     const total = document.getElementById('pos-grand-total').textContent;
     const text = `Hello ${custName}, Thank you for shopping at Gul Son's Clothes & Perfume Shop! Your total invoice bill is ${total}. Have a blessed day!`;
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
+    window.api.whatsapp.openChat(custPhone, text)
+      .then(() => toast.success('WhatsApp Desktop chat opened'))
+      .catch(err => {
+        console.error(err);
+        toast.error(err.message || 'Could not open WhatsApp Desktop');
+      });
   }
 };

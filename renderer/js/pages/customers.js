@@ -112,6 +112,7 @@ window.CustomersPage = {
             </div>
             <div style="display:flex; gap:var(--space-2);">
               <button class="btn btn-secondary" onclick="CustomersPage.editProfile()">Edit Profile</button>
+              <button class="btn btn-secondary" onclick="CustomersPage.sendWhatsAppReminder()" ${customer.phone ? '' : 'disabled title="Save a phone number first"'}>💬 WhatsApp Reminder</button>
               <button class="btn btn-primary" onclick="CustomersPage.showAddPaymentModal()">Receive Payment</button>
             </div>
           </div>
@@ -286,6 +287,27 @@ window.CustomersPage = {
     } catch (err) {
       console.error(err);
       toast.error('Failed to record payment');
+    }
+  },
+
+  async sendWhatsAppReminder() {
+    const customer = this.currentCustomer;
+    if (!customer || !customer.phone) {
+      return toast.error('Please save the customer phone number first');
+    }
+
+    const balance = Number(customer.outstanding_balance || 0);
+    const amount = balance.toLocaleString('en-PK', { maximumFractionDigits: 2 });
+    const message = balance > 0
+      ? `Assalam-o-Alaikum ${customer.name}, Gul Son's se aap ka baki khata Rs. ${amount} hai. Mehrbani kar ke apni sahulat ke mutabiq payment kar dein. Shukriya.`
+      : `Assalam-o-Alaikum ${customer.name}, Gul Son's se aap ka khata clear hai. Shukriya!`;
+
+    try {
+      await window.api.whatsapp.openChat(customer.phone, message);
+      toast.success('WhatsApp Desktop chat opened');
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || 'Could not open WhatsApp Desktop');
     }
   }
 };

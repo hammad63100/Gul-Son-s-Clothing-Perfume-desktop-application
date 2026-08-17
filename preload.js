@@ -72,6 +72,11 @@ contextBridge.exposeInMainWorld('api', {
     getLedger: (id) => ipcRenderer.invoke('customers:getLedger', id),
   },
 
+  // â”€â”€â”€ WhatsApp â”€â”€â”€
+  whatsapp: {
+    openChat: (phone, message) => ipcRenderer.invoke('whatsapp:openChat', phone, message),
+  },
+
   // ─── Reports ───
   reports: {
     getDaily: (date) => ipcRenderer.invoke('reports:getDaily', date),

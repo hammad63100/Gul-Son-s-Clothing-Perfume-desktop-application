@@ -160,8 +160,9 @@ function productsDB(db) {
     },
 
     getLowStock(threshold) {
-      const t = threshold || 5;
-      return db.prepare('SELECT * FROM products WHERE is_active = 1 AND quantity <= low_stock_threshold ORDER BY quantity ASC').all();
+      const parsed = Number(threshold);
+      const t = Number.isFinite(parsed) && parsed >= 0 ? parsed : 5;
+      return db.prepare('SELECT * FROM products WHERE is_active = 1 AND quantity <= ? ORDER BY quantity ASC').all(t);
     },
 
     getTopSelling(limit = 5, dateRange = {}) {

@@ -5,6 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "test": "node --test tests/run-all.js",
     "build": "electron-builder --win",
     "pack": "electron-builder --dir"
   },

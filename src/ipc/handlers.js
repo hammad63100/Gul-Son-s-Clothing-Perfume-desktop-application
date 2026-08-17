@@ -11,6 +11,7 @@ const { suppliersDB } = require('../database/suppliers');
 const { backupDatabase, exportAllToExcel } = require('../backup/backup');
 const { generateInvoicePDF } = require('../export/pdf');
 const { exportReportToExcel } = require('../export/excel');
+const { buildWhatsAppDesktopUrl } = require('../utils/whatsapp');
 
 function registerHandlers(db, ipcMain) {
   const products = productsDB(db);
@@ -221,6 +222,15 @@ function registerHandlers(db, ipcMain) {
   ipcMain.handle('customers:update', (_, id, data) => customers.update(id, data));
   ipcMain.handle('customers:addPayment', (_, id, amount, method, note) => customers.addPayment(id, amount, method, note));
   ipcMain.handle('customers:getLedger', (_, id) => customers.getLedger(id));
+
+  // Open the installed WhatsApp Desktop app (when available) with a message
+  // addressed to the customer's saved number. Phone numbers are normalized for
+  // Pakistan while still accepting numbers already stored with a country code.
+  ipcMain.handle('whatsapp:openChat', async (_, phone, message) => {
+    const url = buildWhatsAppDesktopUrl(phone, message);
+    await shell.openExternal(url);
+    return { phone: new URL(url).searchParams.get('phone') };
+  });
 
   // ─── Expenses & Finance ───
   ipcMain.handle('expenses:getAll', (_, filters) => expenses.getAll(filters));
