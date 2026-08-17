@@ -1,6 +1,6 @@
 {
   "name": "gul-sons-shop-manager",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Gul Son's — Shop Management Desktop Application for Clothes & Perfume",
   "main": "main.js",
   "scripts": {
@@ -34,11 +34,7 @@
       "output": "dist",
       "buildResources": "build"
     },
-    "asar": true,
-    "asarUnpack": [
-      "**/node_modules/sql.js/dist/sql-wasm.wasm",
-      "**/node_modules/call-bind-apply-helpers/**/*"
-    ],
+    "asar": false,
     "files": [
       "main.js",
       "preload.js",
@@ -54,6 +50,10 @@
       "!node_modules/7zip-bin/**"
     ],
     "extraResources": [
+      {
+        "from": "node_modules/call-bind-apply-helpers",
+        "to": "app/node_modules/call-bind-apply-helpers"
+      },
       {
         "from": "renderer/assets/icon.ico",
         "to": "icon.ico"
