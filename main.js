@@ -1,5 +1,11 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+
+if (!app || typeof app.whenReady !== 'function') {
+  console.error('\n\x1b[31m[Gul Sons App Error]\x1b[0m App was launched in Node.js CLI mode because ELECTRON_RUN_AS_NODE is set.\nTo start the GUI desktop app, run:\n  PowerShell: $env:ELECTRON_RUN_AS_NODE=""; npm start\n  CMD:        set ELECTRON_RUN_AS_NODE= && npm start\n');
+  process.exit(1);
+}
+
 const { initDatabase } = require('./src/database/init');
 const { registerHandlers } = require('./src/ipc/handlers');
 
