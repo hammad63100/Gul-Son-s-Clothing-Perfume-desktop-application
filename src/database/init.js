@@ -59,7 +59,17 @@ async function createDatabaseAdapter(dbPath) {
   // Option 3: Pure WASM sql.js
   try {
     const initSqlJs = require('sql.js');
-    const SQL = await initSqlJs();
+    const wasmLocation = path.join(__dirname, '..', '..', 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm');
+    const SQL = await initSqlJs({
+      locateFile: file => {
+        if (file.endsWith('.wasm')) {
+          const unpacked = wasmLocation.replace('app.asar', 'app.asar.unpacked');
+          if (fs.existsSync(unpacked)) return unpacked;
+          if (fs.existsSync(wasmLocation)) return wasmLocation;
+        }
+        return file;
+      }
+    });
     console.log('SQLite Engine: Pure WASM sql.js');
 
     let wasmDb;
