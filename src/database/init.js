@@ -416,7 +416,11 @@ async function initDatabase() {
       ['Women\'s Perfume', 'Perfume'],
       ['Unisex Perfume', 'Perfume'],
       ['Attar & Oud', 'Perfume'],
-      ['Body Spray', 'Perfume']
+      ['Body Spray', 'Perfume'],
+      ['Banyans / Vests', 'Hosiery'],
+      ['Socks', 'Hosiery'],
+      ['T-Shirts', 'Hosiery'],
+      ['Undergarments', 'Hosiery'],
     ];
     for (const [catName, catType] of defaultCats) {
       insertCategory.run(catName, catType);

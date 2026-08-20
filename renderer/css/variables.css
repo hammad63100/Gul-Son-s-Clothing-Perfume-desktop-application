@@ -1,53 +1,55 @@
 /* ═══════════════════════════════════════════════════════════
    Gul Son's — Design System Variables
-   Premium dark theme with gold accents
+   Clean white theme with black bold text
    ═══════════════════════════════════════════════════════════ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 :root {
   /* ─── Color Palette ─── */
-  --color-bg-primary: #0a0e1a;
-  --color-bg-secondary: #111627;
-  --color-bg-tertiary: #1a1f35;
-  --color-bg-card: #161b2e;
-  --color-bg-card-hover: #1e2440;
-  --color-bg-input: #1a1f35;
-  --color-bg-modal: #111627;
-  --color-bg-sidebar: #0d1120;
-  --color-bg-titlebar: #080b14;
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f5f5f5;
+  --color-bg-tertiary: #eeeeee;
+  --color-bg-card: #ffffff;
+  --color-bg-card-hover: #f0f0f0;
+  --color-bg-input: #f8f8f8;
+  --color-bg-modal: #ffffff;
+  --color-bg-sidebar: #f9f9f9;
+  --color-bg-titlebar: #ffffff;
 
-  --color-border: rgba(255, 255, 255, 0.06);
-  --color-border-light: rgba(255, 255, 255, 0.1);
-  --color-border-focus: #c8a84e;
+  --color-border: rgba(0, 0, 0, 0.1);
+  --color-border-light: rgba(0, 0, 0, 0.15);
+  --color-border-focus: #b8942e;
 
   /* Accent — Gold */
-  --color-accent: #c8a84e;
-  --color-accent-hover: #d4b95f;
-  --color-accent-light: rgba(200, 168, 78, 0.15);
-  --color-accent-glow: rgba(200, 168, 78, 0.3);
+  --color-accent: #b8942e;
+  --color-accent-hover: #a07e20;
+  --color-accent-light: rgba(184, 148, 46, 0.12);
+  --color-accent-glow: rgba(184, 148, 46, 0.25);
 
   /* Status Colors */
-  --color-success: #34d399;
-  --color-success-bg: rgba(52, 211, 153, 0.12);
-  --color-warning: #fbbf24;
-  --color-warning-bg: rgba(251, 191, 36, 0.12);
-  --color-danger: #f87171;
-  --color-danger-bg: rgba(248, 113, 113, 0.12);
-  --color-info: #60a5fa;
-  --color-info-bg: rgba(96, 165, 250, 0.12);
+  --color-success: #16a34a;
+  --color-success-bg: rgba(22, 163, 74, 0.1);
+  --color-warning: #ca8a04;
+  --color-warning-bg: rgba(202, 138, 4, 0.1);
+  --color-danger: #dc2626;
+  --color-danger-bg: rgba(220, 38, 38, 0.1);
+  --color-info: #2563eb;
+  --color-info-bg: rgba(37, 99, 235, 0.1);
 
   /* Text */
-  --color-text-primary: #f0f0f5;
-  --color-text-secondary: #a0a3b1;
-  --color-text-muted: #6b6e7e;
-  --color-text-accent: #c8a84e;
+  --color-text-primary: #000000;
+  --color-text-secondary: #1a1a1a;
+  --color-text-muted: #555555;
+  --color-text-accent: #8b6914;
 
   /* Category Colors */
-  --color-clothes: #818cf8;
-  --color-clothes-bg: rgba(129, 140, 248, 0.12);
-  --color-perfume: #f472b6;
-  --color-perfume-bg: rgba(244, 114, 182, 0.12);
+  --color-clothes: #4f46e5;
+  --color-clothes-bg: rgba(79, 70, 229, 0.1);
+  --color-perfume: #db2777;
+  --color-perfume-bg: rgba(219, 39, 119, 0.1);
+  --color-hosiery: #0d9488;
+  --color-hosiery-bg: rgba(13, 148, 136, 0.1);
 
   /* ─── Typography ─── */
   --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -82,12 +84,12 @@
   --radius-full: 9999px;
 
   /* ─── Shadows ─── */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.5);
-  --shadow-xl: 0 16px 50px rgba(0, 0, 0, 0.6);
-  --shadow-glow: 0 0 20px rgba(200, 168, 78, 0.15);
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 16px 50px rgba(0, 0, 0, 0.15);
+  --shadow-glow: 0 0 20px rgba(184, 148, 46, 0.1);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.06);
 
   /* ─── Transitions ─── */
   --transition-fast: 150ms ease;
