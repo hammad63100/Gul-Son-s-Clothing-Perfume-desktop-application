@@ -52,8 +52,9 @@ function registerHandlers(db, ipcMain) {
       try { monthlyExpensesVal = expenses.getSummary(`${year}-${String(month).padStart(2, '0')}-01`, today) || 0; } catch (e) { console.error('Dashboard: monthlyExpenses error:', e.message); }
 
       // Product counts (safe)
-      let totalClothesCount = 0, totalPerfumeCount = 0, totalProductsCount = 0, outOfStockCnt = 0, stockVal = 0;
+      let totalClothesCount = 0, totalHosieryCount = 0, totalPerfumeCount = 0, totalProductsCount = 0, outOfStockCnt = 0, stockVal = 0;
       try { totalClothesCount = (db.prepare("SELECT COUNT(*) as count FROM products WHERE is_active = 1 AND (category = 'Clothes' OR category IN (SELECT name FROM categories WHERE type = 'Clothes'))").get() || {}).count || 0; } catch (e) { console.error('Dashboard: totalClothes error:', e.message); }
+      try { totalHosieryCount = (db.prepare("SELECT COUNT(*) as count FROM products WHERE is_active = 1 AND (category = 'Hosiery' OR category IN (SELECT name FROM categories WHERE type = 'Hosiery'))").get() || {}).count || 0; } catch (e) { console.error('Dashboard: totalHosiery error:', e.message); }
       try { totalPerfumeCount = (db.prepare("SELECT COUNT(*) as count FROM products WHERE is_active = 1 AND (category = 'Perfume' OR category IN (SELECT name FROM categories WHERE type = 'Perfume'))").get() || {}).count || 0; } catch (e) { console.error('Dashboard: totalPerfume error:', e.message); }
       try { totalProductsCount = (db.prepare("SELECT COUNT(*) as count FROM products WHERE is_active = 1").get() || {}).count || 0; } catch (e) { console.error('Dashboard: totalProducts error:', e.message); }
       try { outOfStockCnt = (db.prepare("SELECT COUNT(*) as count FROM products WHERE is_active = 1 AND quantity <= 0").get() || {}).count || 0; } catch (e) { console.error('Dashboard: outOfStock error:', e.message); }
@@ -68,12 +69,14 @@ function registerHandlers(db, ipcMain) {
       let topSelling = [];
       try { topSelling = products.getTopSelling(5, {}) || []; } catch (e) { console.error('Dashboard: topSelling error:', e.message); }
 
-      // Top perfumes & clothes — using JS iterative approach to avoid WASM SQLite subquery failures
+      // Top perfumes, clothes & hosiery — using JS iterative approach to avoid WASM SQLite subquery failures
       let topPerfumes = [];
       let topClothes = [];
+      let topHosiery = [];
       try {
         const perfList = db.prepare("SELECT id, name, category, size FROM products WHERE is_active = 1 AND (category = 'Perfume' OR category IN (SELECT name FROM categories WHERE type = 'Perfume'))").all() || [];
         const clothesList = db.prepare("SELECT id, name, category, size, color FROM products WHERE is_active = 1 AND (category = 'Clothes' OR category IN (SELECT name FROM categories WHERE type = 'Clothes'))").all() || [];
+        const hosieryList = db.prepare("SELECT id, name, category, size, color FROM products WHERE is_active = 1 AND (category = 'Hosiery' OR category IN (SELECT name FROM categories WHERE type = 'Hosiery'))").all() || [];
 
         const salesData = db.prepare("SELECT product_id, COALESCE(SUM(quantity), 0) as sold, COALESCE(SUM(line_total), 0) as rev FROM sale_items GROUP BY product_id").all() || [];
         const salesMap = {};
@@ -94,7 +97,14 @@ function registerHandlers(db, ipcMain) {
         }
         topClothes.sort((a, b) => b.total_sold - a.total_sold);
         topClothes = topClothes.slice(0, 5);
-      } catch (e) { console.error('Dashboard: topPerfumes/Clothes error:', e.message); }
+
+        for (const p of hosieryList) {
+          const s = salesMap[p.id] || { sold: 0, rev: 0 };
+          if (s.sold > 0) topHosiery.push({ ...p, total_sold: s.sold, total_revenue: s.rev });
+        }
+        topHosiery.sort((a, b) => b.total_sold - a.total_sold);
+        topHosiery = topHosiery.slice(0, 5);
+      } catch (e) { console.error('Dashboard: topPerfumes/Clothes/Hosiery error:', e.message); }
 
       // Recent Transactions
       let recentTransactions = [];
@@ -139,7 +149,9 @@ function registerHandlers(db, ipcMain) {
         topSelling,
         topPerfumes,
         topClothes,
+        topHosiery,
         totalClothes: totalClothesCount,
+        totalHosiery: totalHosieryCount,
         totalPerfume: totalPerfumeCount,
         totalProducts: totalProductsCount,
         outOfStockCount: outOfStockCnt,
@@ -158,8 +170,8 @@ function registerHandlers(db, ipcMain) {
         today: { total_sales: 0, total_revenue: 0, total_profit: 0, total_customers: 0 },
         thisMonth: { total_sales: 0, total_revenue: 0, total_profit: 0 },
         todayExpenses: 0, monthlyExpenses: 0, netDailyProfit: 0, netMonthlyProfit: 0,
-        lowStockProducts: [], topSelling: [], topPerfumes: [], topClothes: [],
-        totalClothes: 0, totalPerfume: 0, totalProducts: 0, outOfStockCount: 0,
+        lowStockProducts: [], topSelling: [], topPerfumes: [], topClothes: [], topHosiery: [],
+        totalClothes: 0, totalHosiery: 0, totalPerfume: 0, totalProducts: 0, outOfStockCount: 0,
         stockValue: 0, totalCustomers: 0, totalSuppliers: 0, pendingSupplierPayments: 0,
         cashInHand: 0, recentTransactions: [], last7Days: [],
         currency: 'Rs.',
@@ -238,13 +250,16 @@ function registerHandlers(db, ipcMain) {
   ipcMain.handle('expenses:delete', (_, id) => expenses.delete(id));
   ipcMain.handle('expenses:getSummary', (_, startDate, endDate) => expenses.getSummary(startDate, endDate));
 
-  // ─── Categories & Brands ───
+  // ─── Categories & Brands & Fragrance Types ───
   ipcMain.handle('master:getCategories', (_, type) => masterData.getCategories(type));
   ipcMain.handle('master:addCategory', (_, name, type) => masterData.addCategory(name, type));
   ipcMain.handle('master:deleteCategory', (_, id) => masterData.deleteCategory(id));
   ipcMain.handle('master:getBrands', () => masterData.getBrands());
   ipcMain.handle('master:addBrand', (_, name) => masterData.addBrand(name));
   ipcMain.handle('master:deleteBrand', (_, id) => masterData.deleteBrand(id));
+  ipcMain.handle('master:getFragranceTypes', () => masterData.getFragranceTypes());
+  ipcMain.handle('master:addFragranceType', (_, name) => masterData.addFragranceType(name));
+  ipcMain.handle('master:deleteFragranceType', (_, id) => masterData.deleteFragranceType(id));
 
   // ─── Suppliers ───
   ipcMain.handle('suppliers:getAll', (_, search) => suppliers.getAll(search));

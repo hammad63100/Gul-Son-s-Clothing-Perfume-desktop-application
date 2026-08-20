@@ -30,8 +30,21 @@ function masterDataDB(db) {
       return { id: res.lastInsertRowid, name };
     },
 
-    deleteBrand(id) {
-      db.prepare('DELETE FROM brands WHERE id = ?').run(id);
+    // Fragrance Types
+    getFragranceTypes() {
+      return db.prepare('SELECT * FROM fragrance_types ORDER BY name ASC').all();
+    },
+
+    addFragranceType(name) {
+      const trimmed = String(name || '').trim();
+      if (!trimmed) throw new Error('Fragrance type name is required');
+      const stmt = db.prepare('INSERT OR IGNORE INTO fragrance_types (name) VALUES (?)');
+      const res = stmt.run(trimmed);
+      return { id: res.lastInsertRowid, name: trimmed };
+    },
+
+    deleteFragranceType(id) {
+      db.prepare('DELETE FROM fragrance_types WHERE id = ?').run(id);
       return { success: true };
     }
   };

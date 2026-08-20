@@ -231,7 +231,7 @@ window.ReportsPage = {
 
         area.innerHTML = `
           <div class="card">
-            <h3 class="card-title">Category Sales Comparison (Clothes vs. Perfumes)</h3>
+            <h3 class="card-title">Category Sales Comparison (Clothes, Hosiery &amp; Perfumes)</h3>
             <div class="table-container" style="margin-top:var(--space-3);">
               <table class="data-table">
                 <thead>
@@ -248,7 +248,7 @@ window.ReportsPage = {
                     <tr><td colspan="5" style="text-align:center;">No category sales data found</td></tr>
                   ` : data.map(c => `
                     <tr>
-                      <td><span class="badge ${c.category === 'Clothes' ? 'badge-clothes' : 'badge-perfume'}">${c.category}</span></td>
+                      <td><span class="badge ${c.category === 'Clothes' ? 'badge-clothes' : (c.category === 'Hosiery' ? 'badge-hosiery' : 'badge-perfume')}">${c.category}</span></td>
                       <td>${c.total_sales}</td>
                       <td>${c.total_qty} pcs</td>
                       <td style="font-weight:700;">${formatters.currency(c.total_revenue, curr)}</td>

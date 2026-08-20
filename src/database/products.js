@@ -11,6 +11,87 @@ function productsDB(db) {
     return number;
   };
 
+  const validateAndSanitizeProduct = (data, isUpdate = false) => {
+    const cleaned = {};
+
+    if (!isUpdate || data.name !== undefined) {
+      const name = String(data.name || '').trim();
+      if (!name) throw new Error('Product name is required');
+      cleaned.name = name;
+    }
+
+    if (!isUpdate || data.category !== undefined) {
+      const category = String(data.category || 'Clothes').trim();
+      cleaned.category = ['Clothes', 'Hosiery', 'Perfume'].includes(category) ? category : 'Clothes';
+    }
+
+    if (data.brand !== undefined) {
+      cleaned.brand = data.brand ? String(data.brand).trim() : null;
+    }
+
+    // Dynamic Size & Garment Rules
+    if (!isUpdate || data.size !== undefined) {
+      const targetCategory = cleaned.category || data.category || 'Clothes';
+      const sizeStr = data.size ? String(data.size).trim() : null;
+      if (targetCategory === 'Hosiery' && (!sizeStr || sizeStr === '')) {
+        throw new Error('Garment size / pack configuration is required for Hosiery items');
+      }
+      cleaned.size = sizeStr || null;
+    }
+
+    // Category-specific attribute pruning
+    const currentCategory = cleaned.category || data.category || 'Clothes';
+
+    if (data.color !== undefined) {
+      cleaned.color = currentCategory === 'Perfume' ? null : (data.color ? String(data.color).trim() : null);
+    }
+    if (data.fabric !== undefined) {
+      cleaned.fabric = currentCategory === 'Perfume' ? null : (data.fabric ? String(data.fabric).trim() : null);
+    }
+    if (data.fragrance_type !== undefined) {
+      cleaned.fragrance_type = currentCategory === 'Perfume' ? (data.fragrance_type ? String(data.fragrance_type).trim() : null) : null;
+    }
+    if (data.gender !== undefined) {
+      cleaned.gender = data.gender ? String(data.gender).trim() : null;
+    }
+
+    if (data.barcode !== undefined) {
+      cleaned.barcode = data.barcode ? String(data.barcode).trim() : null;
+    }
+    if (data.sku !== undefined || data.barcode !== undefined) {
+      const skuVal = data.sku || data.barcode;
+      cleaned.sku = skuVal ? String(skuVal).trim() : null;
+    }
+
+    if (!isUpdate || data.purchase_price !== undefined) {
+      cleaned.purchase_price = nonNegativeNumber(data.purchase_price ?? 0, 'Purchase price');
+    }
+    if (!isUpdate || data.sale_price !== undefined) {
+      cleaned.sale_price = nonNegativeNumber(data.sale_price ?? 0, 'Sale price');
+    }
+    if (!isUpdate || data.wholesale_price !== undefined) {
+      cleaned.wholesale_price = nonNegativeNumber(data.wholesale_price ?? 0, 'Wholesale price');
+    }
+
+    if (!isUpdate || data.quantity !== undefined) {
+      const quantity = nonNegativeNumber(data.quantity ?? 0, 'Quantity');
+      if (!Number.isInteger(quantity)) throw new Error('Quantity must be a whole number (pieces/packs)');
+      cleaned.quantity = quantity;
+    }
+
+    if (!isUpdate || data.low_stock_threshold !== undefined) {
+      const threshold = nonNegativeNumber(data.low_stock_threshold ?? 5, 'Low stock threshold');
+      if (!Number.isInteger(threshold)) throw new Error('Low stock threshold must be a whole number');
+      cleaned.low_stock_threshold = threshold;
+    }
+
+    if (data.supplier !== undefined) {
+      cleaned.supplier = data.supplier ? String(data.supplier).trim() : null;
+    }
+
+    return cleaned;
+  };
+
   return {
     getAll(filters = {}) {
       let query = 'SELECT * FROM products WHERE is_active = 1';
@@ -57,51 +138,42 @@ function productsDB(db) {
     },
 
     add(data) {
-      const name = String(data.name || '').trim();
-      if (!name) throw new Error('Product name is required');
-      const quantity = nonNegativeNumber(data.quantity ?? 0, 'Quantity');
-      if (!Number.isInteger(quantity)) throw new Error('Quantity must be a whole number');
+      const sanitized = validateAndSanitizeProduct(data, false);
       const stmt = db.prepare(`
-        INSERT INTO products (name, category, brand, size, color, fabric, fragrance_type, gender, barcode, sku, purchase_price, sale_price, quantity, low_stock_threshold, supplier)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO products (name, category, brand, size, color, fabric, fragrance_type, gender, barcode, sku, purchase_price, sale_price, wholesale_price, quantity, low_stock_threshold, supplier)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       const result = stmt.run(
-        name,
-        data.category || 'Clothes',
-        data.brand || null,
-        data.size || null,
-        data.color || null,
-        data.fabric || null,
-        data.fragrance_type || null,
-        data.gender || null,
-        data.barcode || null,
-        data.sku || data.barcode || null,
-        nonNegativeNumber(data.purchase_price ?? 0, 'Purchase price'),
-        nonNegativeNumber(data.sale_price ?? 0, 'Sale price'),
-        quantity,
-        nonNegativeNumber(data.low_stock_threshold ?? 5, 'Low stock threshold'),
-        data.supplier || null
+        sanitized.name,
+        sanitized.category,
+        sanitized.brand || null,
+        sanitized.size || null,
+        sanitized.color || null,
+        sanitized.fabric || null,
+        sanitized.fragrance_type || null,
+        sanitized.gender || null,
+        sanitized.barcode || null,
+        sanitized.sku || null,
+        sanitized.purchase_price,
+        sanitized.sale_price,
+        sanitized.wholesale_price,
+        sanitized.quantity,
+        sanitized.low_stock_threshold,
+        sanitized.supplier || null
       );
-      return { id: result.lastInsertRowid, ...data };
+      return { id: result.lastInsertRowid, ...sanitized };
     },
 
     update(id, data) {
+      const sanitized = validateAndSanitizeProduct(data, true);
       const fields = [];
       const params = [];
 
-      const allowedFields = ['name', 'category', 'brand', 'size', 'color', 'fabric', 'fragrance_type', 'gender', 'barcode', 'sku', 'purchase_price', 'sale_price', 'quantity', 'low_stock_threshold', 'supplier'];
+      const allowedFields = ['name', 'category', 'brand', 'size', 'color', 'fabric', 'fragrance_type', 'gender', 'barcode', 'sku', 'purchase_price', 'sale_price', 'wholesale_price', 'quantity', 'low_stock_threshold', 'supplier'];
       for (const field of allowedFields) {
-        if (data[field] !== undefined) {
-          if (['purchase_price', 'sale_price', 'low_stock_threshold'].includes(field)) {
-            data[field] = nonNegativeNumber(data[field], field.replace('_', ' '));
-          }
-          if (field === 'quantity') {
-            data[field] = nonNegativeNumber(data[field], 'Quantity');
-            if (!Number.isInteger(data[field])) throw new Error('Quantity must be a whole number');
-          }
-          if (field === 'name' && !String(data[field]).trim()) throw new Error('Product name is required');
+        if (sanitized[field] !== undefined) {
           fields.push(`${field} = ?`);
-          params.push(data[field]);
+          params.push(sanitized[field]);
         }
       }
 

@@ -242,6 +242,12 @@ async function initDatabase() {
       created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
     );
 
+    CREATE TABLE IF NOT EXISTS fragrance_types (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    );
+
     CREATE TABLE IF NOT EXISTS suppliers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -393,6 +399,7 @@ async function initDatabase() {
   const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
   const insertCategory = db.prepare('INSERT OR IGNORE INTO categories (name, type) VALUES (?, ?)');
   const insertBrand = db.prepare('INSERT OR IGNORE INTO brands (name) VALUES (?)');
+  const insertFragranceType = db.prepare('INSERT OR IGNORE INTO fragrance_types (name) VALUES (?)');
 
   const seedAll = db.transaction(() => {
     insertSetting.run('shop_name', "Gul Son's");
@@ -430,6 +437,20 @@ async function initDatabase() {
     const defaultBrands = ['Gul Ahmed', 'J.', 'Sapphire', 'Al-Karam', 'Charcoal', 'Dior', 'Chanel', 'Lattafa', 'Rasasi', 'Junaid Jamshed'];
     for (const b of defaultBrands) {
       insertBrand.run(b);
+    }
+
+    // Default Fragrance Types
+    const defaultFragranceTypes = [
+      'Eau de Parfum (EDP)',
+      'Eau de Toilette (EDT)',
+      'Pure Oud / Attar',
+      'Body Spray',
+      'Extrait de Parfum',
+      'Cologne (EDC)',
+      'Concentrated Perfume Oil (CPO)'
+    ];
+    for (const ft of defaultFragranceTypes) {
+      insertFragranceType.run(ft);
     }
   });
   seedAll();

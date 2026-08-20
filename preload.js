@@ -20,7 +20,7 @@ contextBridge.exposeInMainWorld('api', {
     getTopSelling: (limit, dateRange) => ipcRenderer.invoke('products:getTopSelling', limit, dateRange),
   },
 
-  // ─── Master Data (Brands & Categories) ───
+  // ─── Master Data (Brands & Categories & Fragrance Types) ───
   master: {
     getCategories: (type) => ipcRenderer.invoke('master:getCategories', type),
     addCategory: (name, type) => ipcRenderer.invoke('master:addCategory', name, type),
@@ -28,6 +28,9 @@ contextBridge.exposeInMainWorld('api', {
     getBrands: () => ipcRenderer.invoke('master:getBrands'),
     addBrand: (name) => ipcRenderer.invoke('master:addBrand', name),
     deleteBrand: (id) => ipcRenderer.invoke('master:deleteBrand', id),
+    getFragranceTypes: () => ipcRenderer.invoke('master:getFragranceTypes'),
+    addFragranceType: (name) => ipcRenderer.invoke('master:addFragranceType', name),
+    deleteFragranceType: (id) => ipcRenderer.invoke('master:deleteFragranceType', id),
   },
 
   // ─── Expenses & Finance ───

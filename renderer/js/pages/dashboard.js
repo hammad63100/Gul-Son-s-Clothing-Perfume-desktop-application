@@ -167,37 +167,14 @@ window.DashboardPage = {
 
         </div>
 
-        <!-- ─── Category Breakdown: Top Perfumes & Top Clothes ─── -->
-        <div class="grid grid-2 gap-6" style="margin-top: var(--space-6);">
+        <!-- ─── Category Breakdown: Top Clothes, Hosiery & Perfumes ─── -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-6); margin-top: var(--space-6);">
           
-          <!-- Top Selling Perfumes -->
-          <div class="card">
-            <div class="card-header">
-              <h3 class="card-title">🧴 Top-Selling Perfumes</h3>
-              <span class="badge badge-perfume">Perfume Category</span>
-            </div>
-            <div class="table-container" style="margin-top:var(--space-3);">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Perfume Name</th>
-                    <th>Volume</th>
-                    <th>Units Sold</th>
-                    <th>Revenue</th>
-                  </tr>
-                </thead>
-                <tbody id="dash-top-perfumes-body">
-                  <tr><td colspan="4" style="text-align:center;"><div class="spinner"></div></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
           <!-- Top Selling Clothes -->
           <div class="card">
             <div class="card-header">
               <h3 class="card-title">👔 Top-Selling Clothes</h3>
-              <span class="badge badge-clothes">Clothes Category</span>
+              <span class="badge badge-clothes">Clothes</span>
             </div>
             <div class="table-container" style="margin-top:var(--space-3);">
               <table class="data-table">
@@ -210,6 +187,52 @@ window.DashboardPage = {
                   </tr>
                 </thead>
                 <tbody id="dash-top-clothes-body">
+                  <tr><td colspan="4" style="text-align:center;"><div class="spinner"></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Top Selling Hosiery -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">🧦 Top-Selling Hosiery</h3>
+              <span class="badge badge-hosiery">Hosiery</span>
+            </div>
+            <div class="table-container" style="margin-top:var(--space-3);">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Product Name</th>
+                    <th>Pack / Size</th>
+                    <th>Units Sold</th>
+                    <th>Revenue</th>
+                  </tr>
+                </thead>
+                <tbody id="dash-top-hosiery-body">
+                  <tr><td colspan="4" style="text-align:center;"><div class="spinner"></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Top Selling Perfumes -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">🧴 Top-Selling Perfumes</h3>
+              <span class="badge badge-perfume">Perfumes</span>
+            </div>
+            <div class="table-container" style="margin-top:var(--space-3);">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Perfume Name</th>
+                    <th>Volume</th>
+                    <th>Units Sold</th>
+                    <th>Revenue</th>
+                  </tr>
+                </thead>
+                <tbody id="dash-top-perfumes-body">
                   <tr><td colspan="4" style="text-align:center;"><div class="spinner"></div></td></tr>
                 </tbody>
               </table>
@@ -326,7 +349,10 @@ window.DashboardPage = {
       document.getElementById('dash-pending-supplier').textContent = formatters.currency(summary.pendingSupplierPayments, curr);
 
       // Row 3: Counts & Stock Valuation
-      document.getElementById('dash-total-products').textContent = `${summary.totalProducts} (${summary.totalClothes} Clt / ${summary.totalPerfume} Prf)`;
+      const clothesCount = summary.totalClothes || 0;
+      const hosieryCount = summary.totalHosiery || 0;
+      const perfumeCount = summary.totalPerfume || 0;
+      document.getElementById('dash-total-products').textContent = `${summary.totalProducts} (${clothesCount} Clt / ${hosieryCount} Hos / ${perfumeCount} Prf)`;
       document.getElementById('dash-stock-value').textContent = formatters.currency(summary.stockValue, curr);
       document.getElementById('dash-low-stock-cnt').textContent = `${summary.lowStockProducts.length} items`;
       document.getElementById('dash-out-stock-cnt').textContent = `${summary.outOfStockCount} items`;
@@ -401,34 +427,55 @@ window.DashboardPage = {
         </div>
       `;
 
-      // Top Selling Perfumes
-      const perfumesBody = document.getElementById('dash-top-perfumes-body');
-      if (!summary.topPerfumes || summary.topPerfumes.length === 0) {
-        perfumesBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--color-text-muted);">No perfume sales recorded yet</td></tr>`;
-      } else {
-        perfumesBody.innerHTML = summary.topPerfumes.map(p => `
-          <tr>
-            <td style="font-weight:600;">${p.name}</td>
-            <td><span class="badge badge-perfume">${p.size || 'Bottle'}</span></td>
-            <td style="font-weight:700;">${p.total_sold} pcs</td>
-            <td style="color:var(--color-accent); font-weight:700;">${formatters.currency(p.total_revenue, curr)}</td>
-          </tr>
-        `).join('');
-      }
-
       // Top Selling Clothes
       const clothesBody = document.getElementById('dash-top-clothes-body');
-      if (!summary.topClothes || summary.topClothes.length === 0) {
-        clothesBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--color-text-muted);">No clothes sales recorded yet</td></tr>`;
-      } else {
-        clothesBody.innerHTML = summary.topClothes.map(p => `
-          <tr>
-            <td style="font-weight:600;">${p.name}</td>
-            <td><span class="badge badge-clothes">${p.size || ''} ${p.color || ''}</span></td>
-            <td style="font-weight:700;">${p.total_sold} pcs</td>
-            <td style="color:var(--color-accent); font-weight:700;">${formatters.currency(p.total_revenue, curr)}</td>
-          </tr>
-        `).join('');
+      if (clothesBody) {
+        if (!summary.topClothes || summary.topClothes.length === 0) {
+          clothesBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--color-text-muted);">No clothes sales recorded yet</td></tr>`;
+        } else {
+          clothesBody.innerHTML = summary.topClothes.map(p => `
+            <tr>
+              <td style="font-weight:600;">${p.name}</td>
+              <td><span class="badge badge-clothes">${p.size || ''} ${p.color || ''}</span></td>
+              <td style="font-weight:700;">${p.total_sold} pcs</td>
+              <td style="color:var(--color-accent); font-weight:700;">${formatters.currency(p.total_revenue, curr)}</td>
+            </tr>
+          `).join('');
+        }
+      }
+
+      // Top Selling Hosiery
+      const hosieryBody = document.getElementById('dash-top-hosiery-body');
+      if (hosieryBody) {
+        if (!summary.topHosiery || summary.topHosiery.length === 0) {
+          hosieryBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--color-text-muted);">No hosiery sales recorded yet</td></tr>`;
+        } else {
+          hosieryBody.innerHTML = summary.topHosiery.map(p => `
+            <tr>
+              <td style="font-weight:600;">${p.name}</td>
+              <td><span class="badge badge-hosiery">${p.size || 'Standard'}${p.color ? ` (${p.color})` : ''}</span></td>
+              <td style="font-weight:700;">${p.total_sold} pcs</td>
+              <td style="color:var(--color-accent); font-weight:700;">${formatters.currency(p.total_revenue, curr)}</td>
+            </tr>
+          `).join('');
+        }
+      }
+
+      // Top Selling Perfumes
+      const perfumesBody = document.getElementById('dash-top-perfumes-body');
+      if (perfumesBody) {
+        if (!summary.topPerfumes || summary.topPerfumes.length === 0) {
+          perfumesBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--color-text-muted);">No perfume sales recorded yet</td></tr>`;
+        } else {
+          perfumesBody.innerHTML = summary.topPerfumes.map(p => `
+            <tr>
+              <td style="font-weight:600;">${p.name}</td>
+              <td><span class="badge badge-perfume">${p.size || 'Bottle'}</span></td>
+              <td style="font-weight:700;">${p.total_sold} pcs</td>
+              <td style="color:var(--color-accent); font-weight:700;">${formatters.currency(p.total_revenue, curr)}</td>
+            </tr>
+          `).join('');
+        }
       }
 
       // Recent Transactions
@@ -451,16 +498,19 @@ window.DashboardPage = {
       if (!summary.lowStockProducts || summary.lowStockProducts.length === 0) {
         restockBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--color-success);">All stock levels optimal!</td></tr>`;
       } else {
-        restockBody.innerHTML = summary.lowStockProducts.slice(0, 5).map(p => `
-          <tr>
-            <td style="font-weight:600;">${p.name}</td>
-            <td><span class="badge ${p.category === 'Clothes' ? 'badge-clothes' : 'badge-perfume'}">${p.category}</span></td>
-            <td><span class="badge badge-warning">${p.quantity} pcs</span></td>
-            <td>
-              <button class="btn btn-secondary btn-sm" onclick="InventoryPage.openStockInModal(${p.id})">+ Stock</button>
-            </td>
-          </tr>
-        `).join('');
+        restockBody.innerHTML = summary.lowStockProducts.slice(0, 5).map(p => {
+          const badgeClass = p.category === 'Clothes' ? 'badge-clothes' : (p.category === 'Hosiery' ? 'badge-hosiery' : 'badge-perfume');
+          return `
+            <tr>
+              <td style="font-weight:600;">${p.name}</td>
+              <td><span class="badge ${badgeClass}">${p.category}</span></td>
+              <td><span class="badge badge-warning">${p.quantity} pcs</span></td>
+              <td>
+                <button class="btn btn-secondary btn-sm" onclick="InventoryPage.openStockInModal(${p.id})">+ Stock</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
       }
 
     } catch (err) {

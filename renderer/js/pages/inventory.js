@@ -199,6 +199,7 @@ window.InventoryPage = {
   async openAddModal() {
     const categories = await window.api.master.getCategories();
     const brands = await window.api.master.getBrands();
+    const fragranceTypes = await this.getFragranceTypes();
 
     modal.show({
       title: 'Add New Product (Clothes / Hosiery / Perfume)',
@@ -277,12 +278,11 @@ window.InventoryPage = {
           <div id="perfume-attr-group" class="form-row" style="margin-top: var(--space-3); display:none; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
             <div class="form-group">
               <label class="form-label">Fragrance Type</label>
-              <select class="form-select" id="prod-fragrance">
-                <option value="Eau de Parfum (EDP)">Eau de Parfum (EDP)</option>
-                <option value="Eau de Toilette (EDT)">Eau de Toilette (EDT)</option>
-                <option value="Pure Oud / Attar">Pure Oud / Attar</option>
-                <option value="Body Spray">Body Spray</option>
-              </select>
+              <div id="prod-fragrance-wrapper" style="position:relative; width:100%;">
+                <select class="form-select" id="prod-fragrance" onchange="InventoryPage.onFragranceTypeChange(this.value, 'prod')" style="width:100%;">
+                  ${this.getFragranceTypeOptionsHTML(fragranceTypes)}
+                </select>
+              </div>
             </div>
             <div class="form-group">
               <label class="form-label">Target Gender</label>
@@ -490,6 +490,90 @@ window.InventoryPage = {
     }
   },
 
+  async getFragranceTypes() {
+    try {
+      const types = await window.api.master.getFragranceTypes();
+      if (types && types.length > 0) return types;
+    } catch (e) {
+      console.error(e);
+    }
+    return [
+      { id: 1, name: 'Eau de Parfum (EDP)' },
+      { id: 2, name: 'Eau de Toilette (EDT)' },
+      { id: 3, name: 'Pure Oud / Attar' },
+      { id: 4, name: 'Body Spray' },
+      { id: 5, name: 'Extrait de Parfum' },
+      { id: 6, name: 'Cologne (EDC)' },
+      { id: 7, name: 'Concentrated Perfume Oil (CPO)' }
+    ];
+  },
+
+  getFragranceTypeOptionsHTML(types, selectedVal = '') {
+    const list = types.map(t => typeof t === 'string' ? t : t.name);
+    if (selectedVal && !list.includes(selectedVal) && selectedVal !== 'ADD_NEW_FRAGRANCE_TYPE') {
+      list.push(selectedVal);
+    }
+    const defaultVal = selectedVal || (list.length > 0 ? list[0] : 'Eau de Parfum (EDP)');
+    let html = list.map(t => `<option value="${t}" ${t === defaultVal ? 'selected' : ''}>${t}</option>`).join('');
+    html += `<option value="ADD_NEW_FRAGRANCE_TYPE" style="font-weight:bold; color:var(--color-primary);">➕ Add Your Fragrance Type...</option>`;
+    return html;
+  },
+
+  async onFragranceTypeChange(value, prefix) {
+    if (value === 'ADD_NEW_FRAGRANCE_TYPE') {
+      const wrapper = document.getElementById(`${prefix}-fragrance-wrapper`);
+      if (!wrapper) return;
+
+      const prevVal = wrapper.dataset.prevVal || '';
+
+      wrapper.innerHTML = `
+        <div class="input-group" id="${prefix}-new-fragrance-group" style="display:flex; width:100%;">
+          <input type="text" class="form-input" id="${prefix}-new-fragrance-input" placeholder="New fragrance type name..." style="flex:1; font-size:12px; height:36px; padding:0 8px;">
+          <button type="button" class="btn btn-primary btn-sm" id="${prefix}-new-fragrance-save" style="padding:0 10px; height:36px;">OK</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="${prefix}-new-fragrance-cancel" style="padding:0 8px; height:36px;">✖</button>
+        </div>
+      `;
+
+      const input = document.getElementById(`${prefix}-new-fragrance-input`);
+      input?.focus();
+
+      const finish = async (isSave) => {
+        let chosen = prevVal;
+        if (isSave) {
+          const newType = input.value.trim();
+          if (newType) {
+            try {
+              await window.api.master.addFragranceType(newType);
+              toast.success(`Fragrance Type "${newType}" added!`);
+              chosen = newType;
+            } catch (err) {
+              console.error(err);
+              toast.error('Failed to add fragrance type');
+            }
+          }
+        }
+
+        const types = await this.getFragranceTypes();
+        wrapper.innerHTML = `
+          <select class="form-select" id="${prefix}-fragrance" onchange="InventoryPage.onFragranceTypeChange(this.value, '${prefix}')" style="width:100%;">
+            ${this.getFragranceTypeOptionsHTML(types, chosen)}
+          </select>
+        `;
+        wrapper.dataset.prevVal = chosen;
+      };
+
+      document.getElementById(`${prefix}-new-fragrance-save`).onclick = () => finish(true);
+      document.getElementById(`${prefix}-new-fragrance-cancel`).onclick = () => finish(false);
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+        else if (e.key === 'Escape') { finish(false); }
+      };
+    } else {
+      const wrapper = document.getElementById(`${prefix}-fragrance-wrapper`);
+      if (wrapper) wrapper.dataset.prevVal = value;
+    }
+  },
+
   toggleBrandDropdown() {
     const dropdown = document.getElementById('custom-brand-dropdown');
     if (dropdown) {
@@ -689,7 +773,13 @@ window.InventoryPage = {
 
     const color = document.getElementById('prod-color')?.value.trim() || null;
     const fabric = document.getElementById('prod-fabric')?.value.trim() || null;
-    const fragrance_type = category === 'Perfume' ? (document.getElementById('prod-fragrance')?.value || null) : null;
+    let fragrance_type = null;
+    if (category === 'Perfume') {
+      const fragSelect = document.getElementById('prod-fragrance');
+      const fragInput = document.getElementById('prod-new-fragrance-input');
+      fragrance_type = fragSelect ? (fragSelect.value !== 'ADD_NEW_FRAGRANCE_TYPE' ? fragSelect.value : '') : (fragInput?.value.trim() || null);
+      if (!fragrance_type) fragrance_type = null;
+    }
     const gender = category === 'Perfume' ? (document.getElementById('prod-gender')?.value || null) : null;
 
     const purchase_price = parseFloat(document.getElementById('prod-cost').value) || 0;
@@ -794,6 +884,7 @@ window.InventoryPage = {
   async openEditModal(id) {
     const product = await window.api.products.get(id);
     if (!product) return;
+    const fragranceTypes = await this.getFragranceTypes();
 
     const isPerfume = product.category === 'Perfume';
     const isHosiery = product.category === 'Hosiery';
@@ -804,10 +895,21 @@ window.InventoryPage = {
     let garmentSizePart = '';
 
     if (isHosiery && product.size) {
-      // Hosiery size format: "Pack of 3 | L" or "Piece (Pc) | 40"
-      const parts = product.size.split(' | ');
-      unitPart = parts[0] || '';
-      garmentSizePart = parts[1] || '';
+      // Hosiery size format: "Pack of 3 | L" or "Piece (Pc) | 40" or single size "L"
+      if (product.size.includes(' | ')) {
+        const parts = product.size.split(' | ');
+        unitPart = parts[0] || 'Piece (Pc)';
+        garmentSizePart = parts[1] || '';
+      } else {
+        const knownGarmentSizes = ['S', 'M', 'L', 'XL', 'XXL', '36', '38', '40', '42', '44', '1-2 Years', '3-4 Years', '22', '24', '26'];
+        if (knownGarmentSizes.includes(product.size.trim())) {
+          unitPart = 'Piece (Pc)';
+          garmentSizePart = product.size.trim();
+        } else {
+          unitPart = product.size.trim();
+          garmentSizePart = '';
+        }
+      }
     } else if (product.size) {
       const match = product.size.match(/^([0-9.]+|[SMLXLsmlxl]+)\s*(.*)$/);
       if (match && match[2]) {
@@ -889,12 +991,11 @@ window.InventoryPage = {
           <div id="edit-perfume-attr-group" class="form-row" style="margin-top: var(--space-3); ${isPerfume ? 'display:grid;' : 'display:none;'} grid-template-columns: 1fr 1fr; gap: var(--space-4);">
             <div class="form-group">
               <label class="form-label">Fragrance Type</label>
-              <select class="form-select" id="edit-prod-fragrance">
-                <option value="Eau de Parfum (EDP)" ${product.fragrance_type === 'Eau de Parfum (EDP)' ? 'selected' : ''}>Eau de Parfum (EDP)</option>
-                <option value="Eau de Toilette (EDT)" ${product.fragrance_type === 'Eau de Toilette (EDT)' ? 'selected' : ''}>Eau de Toilette (EDT)</option>
-                <option value="Pure Oud / Attar" ${product.fragrance_type === 'Pure Oud / Attar' ? 'selected' : ''}>Pure Oud / Attar</option>
-                <option value="Body Spray" ${product.fragrance_type === 'Body Spray' ? 'selected' : ''}>Body Spray</option>
-              </select>
+              <div id="edit-prod-fragrance-wrapper" style="position:relative; width:100%;">
+                <select class="form-select" id="edit-prod-fragrance" onchange="InventoryPage.onFragranceTypeChange(this.value, 'edit')" style="width:100%;">
+                  ${this.getFragranceTypeOptionsHTML(fragranceTypes, product.fragrance_type || '')}
+                </select>
+              </div>
             </div>
             <div class="form-group">
               <label class="form-label">Target Gender</label>
@@ -973,7 +1074,13 @@ window.InventoryPage = {
 
     const color = document.getElementById('edit-prod-color')?.value.trim() || null;
     const fabric = document.getElementById('edit-prod-fabric')?.value.trim() || null;
-    const fragrance_type = category === 'Perfume' ? (document.getElementById('edit-prod-fragrance')?.value || null) : null;
+    let fragrance_type = null;
+    if (category === 'Perfume') {
+      const fragSelect = document.getElementById('edit-prod-fragrance');
+      const fragInput = document.getElementById('edit-new-fragrance-input');
+      fragrance_type = fragSelect ? (fragSelect.value !== 'ADD_NEW_FRAGRANCE_TYPE' ? fragSelect.value : '') : (fragInput?.value.trim() || null);
+      if (!fragrance_type) fragrance_type = null;
+    }
     const gender = category === 'Perfume' ? (document.getElementById('edit-prod-gender')?.value || null) : null;
     const purchase_price = parseFloat(document.getElementById('edit-prod-cost').value) || 0;
     const sale_price = parseFloat(document.getElementById('edit-prod-price').value) || 0;

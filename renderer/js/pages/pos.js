@@ -46,6 +46,7 @@ window.POSPage = {
             <div class="tabs" style="margin-top:var(--space-3); margin-bottom:0;">
               <button class="tab-btn active" onclick="POSPage.filterCategory('', this)">All Products</button>
               <button class="tab-btn" onclick="POSPage.filterCategory('Clothes', this)">👔 Clothes</button>
+              <button class="tab-btn" onclick="POSPage.filterCategory('Hosiery', this)">🧦 Hosiery</button>
               <button class="tab-btn" onclick="POSPage.filterCategory('Perfume', this)">🧴 Perfumes</button>
             </div>
 
@@ -242,9 +243,9 @@ window.POSPage = {
             ${items.map(p => `
               <tr class="pos-list-row ${p.quantity <= 0 ? 'disabled' : ''}" onclick="POSPage.addToCart(${p.id})">
                 <td style="font-weight:600; color:var(--color-text-primary);">${p.name}</td>
-                <td><span class="badge ${p.category === 'Clothes' ? 'badge-clothes' : 'badge-perfume'}">${p.category}</span></td>
+                <td><span class="badge ${p.category === 'Clothes' ? 'badge-clothes' : (p.category === 'Hosiery' ? 'badge-hosiery' : 'badge-perfume')}">${p.category}</span></td>
                 <td style="font-size:var(--text-xs); color:var(--color-text-secondary);">
-                  ${p.category === 'Clothes' ? `${p.size || 'M'} ${p.color ? `(${p.color})` : ''}` : `${p.size || '50ml'}`}
+                  ${p.category === 'Perfume' ? `${p.size || '50ml'}` : `${p.size || ''} ${p.color ? `(${p.color})` : ''}`.trim() || '-'}
                 </td>
                 <td style="font-weight:700; color:var(--color-accent);">Rs. ${p.sale_price.toLocaleString()}</td>
                 <td>
@@ -330,9 +331,14 @@ window.POSPage = {
       }
       existing.quantity += 1;
     } else {
-      const variantText = product.category === 'Clothes' 
-        ? `${product.color || ''} / ${product.size || 'M'}`.trim()
-        : `${product.size || '50ml'}`;
+      let variantText = '';
+      if (product.category === 'Perfume') {
+        variantText = product.size || '50ml';
+      } else if (product.category === 'Hosiery') {
+        variantText = `${product.size || ''}${product.color ? ` (${product.color})` : ''}`.trim() || 'Standard';
+      } else {
+        variantText = [product.color, product.size].filter(Boolean).join(' / ') || 'Standard';
+      }
 
       this.cart.push({
         product_id: product.id,
@@ -358,7 +364,7 @@ window.POSPage = {
     item.quantity += delta;
     if (item.quantity > item.max_stock) {
       item.quantity = item.max_stock;
-      toast.warning(`Max available stock reached (${item.max_stock})`);
+      toast.warning(`Maximum available stock reached (${item.max_stock} pcs)`);
     }
 
     if (item.quantity <= 0) {
@@ -469,7 +475,7 @@ window.POSPage = {
           ${this.cart.map(item => `
             <tr>
               <td style="font-weight:600;">${item.product_name}</td>
-              <td><span class="badge ${item.category === 'Clothes' ? 'badge-clothes' : 'badge-perfume'}">${item.variant || '-'}</span></td>
+              <td><span class="badge ${item.category === 'Clothes' ? 'badge-clothes' : (item.category === 'Hosiery' ? 'badge-hosiery' : 'badge-perfume')}">${item.variant || '-'}</span></td>
               <td>
                 <div class="flex items-center gap-1">
                   <button class="btn btn-ghost btn-sm" style="padding:2px 6px;" onclick="POSPage.updateQuantity(${item.product_id}, -1)">-</button>
