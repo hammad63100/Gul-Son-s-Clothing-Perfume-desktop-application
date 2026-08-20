@@ -95,12 +95,18 @@ contextBridge.exposeInMainWorld('api', {
     update: (data) => ipcRenderer.invoke('settings:update', data),
   },
 
-  // ─── Backup & Export ───
+  // ─── Backup, Export & Restore / Import ───
   backup: {
     backupNow: () => ipcRenderer.invoke('backup:backupNow'),
     selectFolder: () => ipcRenderer.invoke('backup:selectFolder'),
+    exportJson: () => ipcRenderer.invoke('backup:exportJson'),
     exportAll: () => ipcRenderer.invoke('backup:exportAll'),
     exportReport: (type, data) => ipcRenderer.invoke('backup:exportReport', type, data),
+    selectFileToRestore: () => ipcRenderer.invoke('backup:selectFileToRestore'),
+    inspectFile: (filePath) => ipcRenderer.invoke('backup:inspectFile', filePath),
+    restoreFile: (filePath) => ipcRenderer.invoke('backup:restoreFile', filePath),
+    getSafetyBackups: () => ipcRenderer.invoke('backup:getSafetyBackups'),
+    openSafetyBackupFolder: () => ipcRenderer.invoke('backup:openSafetyBackupFolder'),
     generateInvoicePDF: (saleData) => ipcRenderer.invoke('backup:generateInvoicePDF', saleData),
   },
 

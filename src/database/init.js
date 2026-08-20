@@ -6,27 +6,34 @@ async function createDatabaseAdapter(dbPath) {
   // Option 1: Try native node:sqlite (Node 22.5+ / Node 24)
   try {
     const { DatabaseSync } = require('node:sqlite');
-    const nativeDb = new DatabaseSync(dbPath);
+    let nativeDb = new DatabaseSync(dbPath);
     console.log('SQLite Engine: Native node:sqlite');
     return {
       pragma(cmd) { try { nativeDb.exec(`PRAGMA ${cmd}`); } catch (e) {} },
       exec(sql) { nativeDb.exec(sql); },
+      flush() {
+        try { nativeDb.exec('PRAGMA wal_checkpoint(TRUNCATE);'); } catch (e) {}
+      },
+      reload(newPath = dbPath) {
+        try { nativeDb.close(); } catch (e) {}
+        nativeDb = new DatabaseSync(newPath);
+      },
       prepare(sql) {
         const stmt = nativeDb.prepare(sql);
         return {
           run(...params) {
             const boundParams = (params.length === 1 && Array.isArray(params[0])) ? params[0] : params;
-            if (boundParams && boundParams.length > 0) return stmt.run(boundParams);
+            if (boundParams && boundParams.length > 0) return stmt.run(...boundParams);
             return stmt.run();
           },
           get(...params) {
             const boundParams = (params.length === 1 && Array.isArray(params[0])) ? params[0] : params;
-            if (boundParams && boundParams.length > 0) return stmt.get(boundParams);
+            if (boundParams && boundParams.length > 0) return stmt.get(...boundParams);
             return stmt.get();
           },
           all(...params) {
             const boundParams = (params.length === 1 && Array.isArray(params[0])) ? params[0] : params;
-            if (boundParams && boundParams.length > 0) return stmt.all(boundParams);
+            if (boundParams && boundParams.length > 0) return stmt.all(...boundParams);
             return stmt.all();
           }
         };
@@ -51,8 +58,15 @@ async function createDatabaseAdapter(dbPath) {
   // Option 2: Try better-sqlite3
   try {
     const Database = require('better-sqlite3');
-    const bDb = new Database(dbPath);
+    let bDb = new Database(dbPath);
     console.log('SQLite Engine: better-sqlite3');
+    bDb.flush = () => {
+      try { bDb.pragma('wal_checkpoint(TRUNCATE)'); } catch (e) {}
+    };
+    bDb.reload = (newPath = dbPath) => {
+      try { bDb.close(); } catch (e) {}
+      bDb = new Database(newPath);
+    };
     return bDb;
   } catch (e) {}
 
@@ -73,12 +87,14 @@ async function createDatabaseAdapter(dbPath) {
     console.log('SQLite Engine: Pure WASM sql.js');
 
     let wasmDb;
-    if (fs.existsSync(dbPath)) {
-      const filebuffer = fs.readFileSync(dbPath);
-      wasmDb = new SQL.Database(filebuffer);
-    } else {
-      wasmDb = new SQL.Database();
-    }
+    const loadWasmFromDisk = (targetPath) => {
+      if (fs.existsSync(targetPath)) {
+        const filebuffer = fs.readFileSync(targetPath);
+        return new SQL.Database(filebuffer);
+      }
+      return new SQL.Database();
+    };
+    wasmDb = loadWasmFromDisk(dbPath);
 
     let transactionDepth = 0;
     let dirty = false;
@@ -140,6 +156,16 @@ async function createDatabaseAdapter(dbPath) {
         dirty = true;
         if (transactionDepth === 0) saveToDisk();
       },
+      flush() {
+        if (dirty) saveToDisk();
+      },
+      reload(newPath = dbPath) {
+        if (wasmDb) {
+          try { wasmDb.close(); } catch (e) {}
+        }
+        wasmDb = loadWasmFromDisk(newPath);
+        dirty = false;
+      },
       prepare(sql) {
         return {
           run(...params) {
@@ -197,9 +223,10 @@ async function createDatabaseAdapter(dbPath) {
   }
 }
 
-async function initDatabase() {
-  const dbPath = path.join(app.getPath('userData'), 'gulsons.db');
+async function initDatabase(customDbPath = null) {
+  const dbPath = customDbPath || (app ? path.join(app.getPath('userData'), 'gulsons.db') : path.join(__dirname, '..', '..', 'gulsons.db'));
   const db = await createDatabaseAdapter(dbPath);
+  db.dbPath = dbPath;
 
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');

@@ -8,7 +8,15 @@ const { settingsDB } = require('../database/settings');
 const { expensesDB } = require('../database/expenses');
 const { masterDataDB } = require('../database/brands');
 const { suppliersDB } = require('../database/suppliers');
-const { backupDatabase, exportAllToExcel } = require('../backup/backup');
+const {
+  backupDatabase,
+  exportAllToJson,
+  exportAllToExcel,
+  inspectBackupFile,
+  restoreDatabase,
+  getSafetyBackupsList,
+  createSafetyBackup
+} = require('../backup/backup');
 const { generateInvoicePDF } = require('../export/pdf');
 const { exportReportToExcel } = require('../export/excel');
 const { buildWhatsAppDesktopUrl } = require('../utils/whatsapp');
@@ -278,8 +286,9 @@ function registerHandlers(db, ipcMain) {
   ipcMain.handle('settings:get', () => settings.get());
   ipcMain.handle('settings:update', (_, data) => settings.update(data));
 
-  // ─── Backup & Export ───
+  // ─── Backup, Export & Import / Restore ───
   ipcMain.handle('backup:backupNow', async () => backupDatabase(db));
+  
   ipcMain.handle('backup:selectFolder', async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'], title: 'Select Backup Location' });
     if (!result.canceled && result.filePaths.length > 0) {
@@ -288,10 +297,25 @@ function registerHandlers(db, ipcMain) {
     }
     return null;
   });
-  ipcMain.handle('backup:exportAll', async () => {
+
+  ipcMain.handle('backup:exportJson', async () => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
     const result = await dialog.showSaveDialog({
-      title: 'Export All Data',
-      defaultPath: `GulSons_FullExport_${new Date().toISOString().split('T')[0]}.xlsx`,
+      title: 'Export Full System Backup (JSON)',
+      defaultPath: `GulSons_FullBackup_${timestamp}.json`,
+      filters: [{ name: 'JSON Backup Files', extensions: ['json'] }],
+    });
+    if (!result.canceled && result.filePath) {
+      return await exportAllToJson(db, result.filePath);
+    }
+    return null;
+  });
+
+  ipcMain.handle('backup:exportAll', async () => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+    const result = await dialog.showSaveDialog({
+      title: 'Export All Data (Excel Master)',
+      defaultPath: `GulSons_MasterExport_${timestamp}.xlsx`,
       filters: [{ name: 'Excel Files', extensions: ['xlsx'] }],
     });
     if (!result.canceled && result.filePath) {
@@ -299,6 +323,7 @@ function registerHandlers(db, ipcMain) {
     }
     return null;
   });
+
   ipcMain.handle('backup:exportReport', async (_, type, data) => {
     const result = await dialog.showSaveDialog({
       title: 'Export Report',
@@ -310,6 +335,44 @@ function registerHandlers(db, ipcMain) {
     }
     return null;
   });
+
+  ipcMain.handle('backup:selectFileToRestore', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Select Backup File to Restore (.db or .json)',
+      filters: [
+        { name: 'All Supported Backup Files', extensions: ['db', 'sqlite', 'bak', 'json'] },
+        { name: 'SQLite Database Files (*.db, *.sqlite)', extensions: ['db', 'sqlite', 'bak'] },
+        { name: 'JSON Backup Files (*.json)', extensions: ['json'] }
+      ],
+      properties: ['openFile']
+    });
+
+    if (!result.canceled && result.filePaths.length > 0) {
+      return result.filePaths[0];
+    }
+    return null;
+  });
+
+  ipcMain.handle('backup:inspectFile', async (_, filePath) => {
+    return await inspectBackupFile(filePath);
+  });
+
+  ipcMain.handle('backup:restoreFile', async (_, filePath) => {
+    return await restoreDatabase(db, filePath);
+  });
+
+  ipcMain.handle('backup:getSafetyBackups', async () => {
+    return getSafetyBackupsList();
+  });
+
+  ipcMain.handle('backup:openSafetyBackupFolder', async () => {
+    const { app } = require('electron');
+    const path = require('path');
+    const safetyDir = path.join(app.getPath('userData'), 'backups');
+    await shell.openPath(safetyDir);
+    return true;
+  });
+
   ipcMain.handle('backup:generateInvoicePDF', async (_, saleData) => {
     if (!saleData || typeof saleData !== 'object') {
       console.warn('generateInvoicePDF called with null or invalid saleData');
