@@ -2,6 +2,7 @@ const { dialog, shell } = require('electron');
 const { productsDB } = require('../database/products');
 const { salesDB } = require('../database/sales');
 const { returnsDB } = require('../database/returns');
+const { purchaseReturnsDB } = require('../database/purchaseReturns');
 const { customersDB } = require('../database/customers');
 const { reportsDB } = require('../database/reports');
 const { settingsDB } = require('../database/settings');
@@ -25,6 +26,7 @@ function registerHandlers(db, ipcMain) {
   const products = productsDB(db);
   const sales = salesDB(db);
   const returns = returnsDB(db);
+  const purchaseReturns = purchaseReturnsDB(db);
   const customers = customersDB(db);
   const reports = reportsDB(db);
   const settings = settingsDB(db);
@@ -135,7 +137,7 @@ function registerHandlers(db, ipcMain) {
         });
       }
 
-      // Cash In Hand = All-time cash sales revenue - all-time expenses
+      // Cash In Hand = All-time cash sales revenue - all-time expenses - all-time cash refunds
       let allTimeCashSales = 0;
       try {
         allTimeCashSales = (db.prepare("SELECT COALESCE(SUM(total_amount), 0) as val FROM sales WHERE payment_method = 'Cash'").get() || {}).val || 0;
@@ -144,7 +146,11 @@ function registerHandlers(db, ipcMain) {
       try {
         allTimeExpenses = (db.prepare("SELECT COALESCE(SUM(amount), 0) as val FROM expenses WHERE payment_method = 'Cash'").get() || {}).val || 0;
       } catch (e) { console.error('Dashboard: allTimeExpenses error:', e.message); }
-      const cashInHand = Math.max(0, allTimeCashSales - allTimeExpenses);
+      let allTimeCashRefunds = 0;
+      try {
+        allTimeCashRefunds = (db.prepare("SELECT COALESCE(SUM(refund_amount), 0) as val FROM returns WHERE refund_type = 'Cash Refund'").get() || {}).val || 0;
+      } catch (e) { console.error('Dashboard: allTimeCashRefunds error:', e.message); }
+      const cashInHand = Math.max(0, allTimeCashSales - allTimeExpenses - allTimeCashRefunds);
 
       return {
         today: dailySummary,
@@ -236,6 +242,10 @@ function registerHandlers(db, ipcMain) {
   ipcMain.handle('returns:processFullInvoice', (_, saleId, reason, customReason, refundType) => returns.processFullInvoice(saleId, reason, customReason, refundType));
   ipcMain.handle('returns:getAll', (_, filters) => returns.getAll(filters));
 
+  // ─── Purchase Returns (returns TO supplier) ───
+  ipcMain.handle('purchaseReturns:process', (_, productId, qty, supplier, reason, notes) => purchaseReturns.process(productId, qty, supplier, reason, notes));
+  ipcMain.handle('purchaseReturns:getAll', (_, filters) => purchaseReturns.getAll(filters));
+
   // ─── Customers ───
   ipcMain.handle('customers:getAll', (_, search) => customers.getAll(search));
   ipcMain.handle('customers:get', (_, id) => customers.get(id));
@@ -285,6 +295,7 @@ function registerHandlers(db, ipcMain) {
   // ─── Settings ───
   ipcMain.handle('settings:get', () => settings.get());
   ipcMain.handle('settings:update', (_, data) => settings.update(data));
+  ipcMain.handle('settings:clearDatabase', () => settings.clearAllData());
 
   // ─── Backup, Export & Import / Restore ───
   ipcMain.handle('backup:backupNow', async () => backupDatabase(db));

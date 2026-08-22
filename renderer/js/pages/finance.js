@@ -147,6 +147,7 @@ window.FinancePage = {
       } else if (this.activeTab === 'cashbook') {
         const dailySales = await window.api.sales.getDailySummary(today);
         const todayExp = await window.api.expenses.getSummary(today, today);
+        const todayReturns = dailySales.total_returns || 0;
 
         area.innerHTML = `
           <div class="card">
@@ -158,11 +159,12 @@ window.FinancePage = {
               </div>
               <div class="card" style="background:var(--color-bg-tertiary);">
                 <div style="font-size:var(--text-xs); color:var(--color-text-muted);">Total Cash Paid Out</div>
-                <div style="font-size:var(--text-xl); font-weight:700; color:var(--color-danger);">${formatters.currency(todayExp, curr)}</div>
+                <div style="font-size:var(--text-xl); font-weight:700; color:var(--color-danger);">${formatters.currency(todayExp + todayReturns, curr)}</div>
+                <div style="font-size:var(--text-xs); color:var(--color-text-muted); margin-top:4px;">Expenses: ${formatters.currency(todayExp, curr)} | Refunds: ${formatters.currency(todayReturns, curr)}</div>
               </div>
               <div class="card" style="background:var(--color-bg-tertiary);">
                 <div style="font-size:var(--text-xs); color:var(--color-text-muted);">Net Cash Balance</div>
-                <div style="font-size:var(--text-xl); font-weight:700; color:var(--color-accent);">${formatters.currency(dailySales.total_revenue - todayExp, curr)}</div>
+                <div style="font-size:var(--text-xl); font-weight:700; color:var(--color-accent);">${formatters.currency(dailySales.total_revenue - todayExp - todayReturns, curr)}</div>
               </div>
             </div>
           </div>

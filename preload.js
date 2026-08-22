@@ -66,6 +66,12 @@ contextBridge.exposeInMainWorld('api', {
     getAll: (filters) => ipcRenderer.invoke('returns:getAll', filters),
   },
 
+  // ─── Purchase Returns (returns TO supplier) ───
+  purchaseReturns: {
+    process: (productId, qty, supplier, reason, notes) => ipcRenderer.invoke('purchaseReturns:process', productId, qty, supplier, reason, notes),
+    getAll: (filters) => ipcRenderer.invoke('purchaseReturns:getAll', filters),
+  },
+
   // ─── Customers ───
   customers: {
     getAll: (search) => ipcRenderer.invoke('customers:getAll', search),
@@ -93,6 +99,7 @@ contextBridge.exposeInMainWorld('api', {
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     update: (data) => ipcRenderer.invoke('settings:update', data),
+    clearDatabase: () => ipcRenderer.invoke('settings:clearDatabase'),
   },
 
   // ─── Backup, Export & Restore / Import ───

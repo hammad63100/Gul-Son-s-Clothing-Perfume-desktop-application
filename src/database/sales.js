@@ -248,6 +248,7 @@ function salesDB(db) {
 
       // Query 3: Deduct returned amounts for the date
       let returnDeduction = 0;
+      let returnProfitDeduction = 0;
       try {
         const retRow = db.prepare(`
           SELECT COALESCE(SUM(refund_amount), 0) as total_returns
@@ -256,11 +257,20 @@ function salesDB(db) {
         `).get(dateStr);
         if (retRow) returnDeduction = retRow.total_returns || 0;
       } catch (e) {}
+      try {
+        const retProfitRow = db.prepare(`
+          SELECT COALESCE(SUM(r.quantity * (si.price_at_sale - si.purchase_price_at_sale)), 0) as profit_returned
+          FROM returns r
+          JOIN sale_items si ON si.sale_id = r.sale_id AND si.product_id = r.product_id
+          WHERE DATE(r.created_at) = DATE(?)
+        `).get(dateStr);
+        if (retProfitRow) returnProfitDeduction = retProfitRow.profit_returned || 0;
+      } catch (e) {}
 
       return {
         total_sales: salesRow ? salesRow.total_sales : 0,
         total_revenue: salesRow ? (salesRow.total_revenue - returnDeduction) : 0,
-        total_profit: Math.max(0, total_profit),
+        total_profit: Math.max(0, total_profit - returnProfitDeduction),
         total_customers: salesRow ? salesRow.total_customers : 0,
         total_returns: returnDeduction
       };
@@ -303,6 +313,7 @@ function salesDB(db) {
 
       // Query 3: Monthly returns deduction
       let returnDeduction = 0;
+      let returnProfitDeduction = 0;
       try {
         const retRow = db.prepare(`
           SELECT COALESCE(SUM(refund_amount), 0) as total_returns
@@ -311,11 +322,20 @@ function salesDB(db) {
         `).get(monthPattern);
         if (retRow) returnDeduction = retRow.total_returns || 0;
       } catch (e) {}
+      try {
+        const retProfitRow = db.prepare(`
+          SELECT COALESCE(SUM(r.quantity * (si.price_at_sale - si.purchase_price_at_sale)), 0) as profit_returned
+          FROM returns r
+          JOIN sale_items si ON si.sale_id = r.sale_id AND si.product_id = r.product_id
+          WHERE r.created_at LIKE ?
+        `).get(monthPattern);
+        if (retProfitRow) returnProfitDeduction = retProfitRow.profit_returned || 0;
+      } catch (e) {}
 
       return {
         total_sales: salesRow ? salesRow.total_sales : 0,
         total_revenue: salesRow ? (salesRow.total_revenue - returnDeduction) : 0,
-        total_profit: Math.max(0, total_profit),
+        total_profit: Math.max(0, total_profit - returnProfitDeduction),
         total_returns: returnDeduction
       };
     }

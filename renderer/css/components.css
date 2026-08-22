@@ -216,6 +216,17 @@
   color: white;
 }
 
+.btn-warning {
+  background: rgba(251, 191, 36, 0.12);
+  color: #d97706;
+  border: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+.btn-warning:hover {
+  background: #d97706;
+  color: white;
+}
+
 .btn-success {
   background: var(--color-success-bg);
   color: var(--color-success);

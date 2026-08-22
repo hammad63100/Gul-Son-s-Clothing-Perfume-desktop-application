@@ -40,6 +40,10 @@ window.SettingsPage = {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px; height:16px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             <span>4. Shop Configuration</span>
           </button>
+          <button class="btn ${this.activeTab === 'reset' ? 'btn-danger' : 'btn-secondary'} btn-sm" id="tab-btn-reset" onclick="SettingsPage.switchTab('reset')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px; height:16px;"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            <span>5. Clear Data (Client Reset)</span>
+          </button>
         </div>
 
         <!-- TAB CONTENT CONTAINER -->
@@ -55,11 +59,11 @@ window.SettingsPage = {
 
   switchTab(tabName) {
     this.activeTab = tabName;
-    ['backup', 'restore', 'safety', 'shop'].forEach(t => {
+    ['backup', 'restore', 'safety', 'shop', 'reset'].forEach(t => {
       const btn = document.getElementById(`tab-btn-${t}`);
       if (btn) {
         if (t === tabName) {
-          btn.className = 'btn btn-primary btn-sm';
+          btn.className = t === 'reset' ? 'btn btn-danger btn-sm' : 'btn btn-primary btn-sm';
         } else {
           btn.className = 'btn btn-secondary btn-sm';
         }
@@ -300,6 +304,56 @@ window.SettingsPage = {
         </div>
       `;
       this.loadShopSettings();
+
+    } else if (this.activeTab === 'reset') {
+      container.innerHTML = `
+        <div class="card animate-fade-in" style="max-width:850px; margin:0 auto;">
+          <div class="card-header" style="border-bottom:1px solid var(--color-border); padding-bottom:var(--space-3); margin-bottom:var(--space-4);">
+            <div>
+              <h3 class="card-title" style="color:var(--color-danger); display:flex; align-items:center; gap:var(--space-2);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px; height:20px;"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                <span>Clear Database (Factory Reset for Client Handover)</span>
+              </h3>
+              <p class="card-subtitle">Wipe all test records completely to give your client a clean, fresh, empty software</p>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:var(--space-4);">
+            
+            <div style="padding:var(--space-4); background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:var(--radius-md);">
+              <h4 style="font-size:var(--text-sm); font-weight:700; color:var(--color-danger); margin-bottom:6px;">⚠️ Important Notice before Client Handover:</h4>
+              <p style="font-size:var(--text-xs); color:var(--color-text-secondary); line-height:1.6;">
+                Clicking the button below will <strong>permanently delete all test records</strong>:
+              </p>
+              <ul style="font-size:var(--text-xs); color:var(--color-text-secondary); margin:var(--space-2) 0 var(--space-2) var(--space-5); line-height:1.6;">
+                <li><strong>All Products & Current Stock</strong> (Clean slate for client to add their actual inventory)</li>
+                <li><strong>All Sales, Invoices & Sold Items</strong> (Resets invoice counter to <code>GS-000001</code>)</li>
+                <li><strong>All Customers, Khata & Payments</strong></li>
+                <li><strong>All Suppliers & Vendor records</strong></li>
+                <li><strong>All Expenses & Cash Out entries</strong></li>
+                <li><strong>All Sales Returns & Supplier Purchase Returns</strong></li>
+                <li><strong>All Stock Adjustment audit logs</strong></li>
+              </ul>
+              <p style="font-size:var(--text-xs); color:var(--color-text-muted);">
+                ✓ <em>Default Categories (Men's Shirts, Perfumes, etc.) and Brand catalogs are preserved.</em>
+              </p>
+            </div>
+
+            <div style="border:2px dashed rgba(239,68,68,0.3); border-radius:var(--radius-lg); padding:var(--space-6); text-align:center; background:var(--color-bg-tertiary);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-danger)" stroke-width="2" style="width:48px; height:48px; margin:0 auto var(--space-3);"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              <h3 style="font-size:var(--text-md); font-weight:700; color:var(--color-text-primary);">Wipe All Test Data Now</h3>
+              <p style="font-size:var(--text-xs); color:var(--color-text-muted); max-width:480px; margin:var(--space-2) auto var(--space-4);">
+                Once cleared, the application will be 100% fresh with 0 sales and 0 products, ready for the client.
+              </p>
+              <button class="btn btn-danger" style="padding:var(--space-3) var(--space-6); font-weight:700;" onclick="SettingsPage.confirmClearDatabase()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px; height:18px;"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                <span>Wipe Database & Reset for Client</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      `;
     }
   },
 
@@ -563,6 +617,36 @@ window.SettingsPage = {
     } catch (err) {
       console.error(err);
       toast.error('Restore failed: ' + err.message);
+    }
+  },
+
+  async confirmClearDatabase() {
+    modal.confirm({
+      title: '🚨 Wipe All Database Records?',
+      message: 'Are you sure you want to permanently clear all products, stock, sales, customer khata, expenses, and returns? This cannot be undone and resets the app for client handover.',
+      confirmText: 'Yes, Wipe Everything & Reset',
+      confirmClass: 'btn-danger',
+      onConfirm: async () => {
+        await SettingsPage.executeClearDatabase();
+      }
+    });
+  },
+
+  async executeClearDatabase() {
+    try {
+      toast.info('Wiping all test records from database...');
+      const res = await window.api.settings.clearDatabase();
+      if (res && res.success) {
+        toast.success('Database completely wiped! 0 Products, 0 Sales, Invoices reset.');
+        setTimeout(() => {
+          window.app.navigateTo('dashboard');
+        }, 800);
+      } else {
+        toast.error('Failed to reset database');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to clear database: ' + err.message);
     }
   }
 };

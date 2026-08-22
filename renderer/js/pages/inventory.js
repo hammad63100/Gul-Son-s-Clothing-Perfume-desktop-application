@@ -173,6 +173,7 @@ window.InventoryPage = {
             <td>
               <div class="flex gap-2">
                 <button class="btn btn-secondary btn-sm" onclick="InventoryPage.openStockInModal(${p.id})">+ Stock</button>
+                <button class="btn btn-warning btn-sm" onclick="InventoryPage.openReturnToSupplierModal(${p.id})">↩ Return</button>
                 <button class="btn btn-ghost btn-sm btn-icon" onclick="InventoryPage.openEditModal(${p.id})">✏️</button>
                 <button class="btn btn-ghost btn-sm btn-icon" style="color:var(--color-danger);" onclick="InventoryPage.confirmDelete(${p.id}, '${p.name.replace(/'/g, "\\'")}')">🗑️</button>
               </div>
@@ -1165,5 +1166,99 @@ window.InventoryPage = {
         }
       }
     });
+  },
+
+  async openReturnToSupplierModal(id) {
+    const product = await window.api.products.get(id);
+    if (!product) return;
+
+    // Load supplier list for the dropdown
+    let supplierOptions = '';
+    try {
+      const suppliers = await window.api.suppliers.getAll();
+      if (suppliers && suppliers.length > 0) {
+        supplierOptions = suppliers.map(s =>
+          `<option value="${s.name}" ${product.supplier && s.name === product.supplier ? 'selected' : ''}>${s.name}${s.company ? ' (' + s.company + ')' : ''}</option>`
+        ).join('');
+      }
+    } catch (e) {}
+
+    modal.show({
+      title: `\u21a9 Return to Supplier \u2014 ${product.name}`,
+      bodyHTML: `
+        <div style="font-size:var(--text-sm); margin-bottom: var(--space-3); color: var(--color-text-secondary);">
+          Current Stock: <strong style="color:var(--color-accent);">${product.quantity} pcs</strong>
+          &nbsp;|&nbsp; Purchase Price: <strong>${product.purchase_price || 0}</strong> per unit
+        </div>
+        <div class="form-group">
+          <label class="form-label">Quantity to Return *</label>
+          <input type="number" class="form-input" id="pr-qty" value="1" min="1" max="${product.quantity}" required>
+        </div>
+        <div class="form-group" style="margin-top: var(--space-3);">
+          <label class="form-label">Supplier / Company *</label>
+          <select class="form-input" id="pr-supplier" style="width:100%;">
+            <option value="">-- Select Supplier --</option>
+            ${supplierOptions}
+            <option value="__other__">Other (type below)</option>
+          </select>
+          <input type="text" class="form-input" id="pr-supplier-other" placeholder="Type supplier name" style="margin-top:var(--space-2); display:none;">
+        </div>
+        <div class="form-group" style="margin-top: var(--space-3);">
+          <label class="form-label">Reason for Return *</label>
+          <select class="form-input" id="pr-reason">
+            <option value="Defective / Damaged">Defective / Damaged</option>
+            <option value="Wrong Item Received">Wrong Item Received</option>
+            <option value="Excess Stock">Excess Stock</option>
+            <option value="Quality Issue">Quality Issue</option>
+            <option value="Expired / Near Expiry">Expired / Near Expiry</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-top: var(--space-3);">
+          <label class="form-label">Additional Notes</label>
+          <textarea class="form-input" id="pr-notes" rows="2" placeholder="Optional notes..."></textarea>
+        </div>
+      `,
+      footerHTML: `
+        <button class="btn btn-secondary" onclick="modal.hide()">Cancel</button>
+        <button class="btn btn-danger" onclick="InventoryPage.saveReturnToSupplier(${id})">Return to Supplier</button>
+      `
+    });
+
+    // Bind the supplier dropdown change event after modal renders
+    setTimeout(() => {
+      const supplierSelect = document.getElementById('pr-supplier');
+      if (supplierSelect) {
+        supplierSelect.addEventListener('change', function() {
+          const otherInput = document.getElementById('pr-supplier-other');
+          if (otherInput) otherInput.style.display = this.value === '__other__' ? 'block' : 'none';
+        });
+      }
+    }, 100);
+  },
+
+  async saveReturnToSupplier(id) {
+    const qty = parseInt(document.getElementById('pr-qty').value) || 0;
+    const supplierSelect = document.getElementById('pr-supplier');
+    let supplier = supplierSelect.value;
+    if (supplier === '__other__') {
+      supplier = (document.getElementById('pr-supplier-other').value || '').trim();
+    }
+    const reason = document.getElementById('pr-reason').value;
+    const notes = (document.getElementById('pr-notes').value || '').trim();
+
+    if (qty <= 0) return toast.error('Quantity must be greater than 0');
+    if (!supplier) return toast.error('Please select or enter a supplier name');
+    if (!reason) return toast.error('Please select a reason for return');
+
+    try {
+      const result = await window.api.purchaseReturns.process(id, qty, supplier, reason, notes || null);
+      toast.success(`Returned ${qty} pcs of "${result.product_name}" to ${supplier}. Stock updated.`);
+      modal.hide();
+      this.loadProducts();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || 'Failed to process purchase return');
+    }
   }
 };

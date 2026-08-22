@@ -24,6 +24,47 @@ function settingsDB(db) {
       const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
       return row ? row.value : null;
     },
+
+    clearAllData() {
+      const txn = db.transaction(() => {
+        db.pragma('foreign_keys = OFF');
+        const tablesToClear = [
+          'customer_payments',
+          'returns',
+          'purchase_returns',
+          'stock_adjustments',
+          'sale_items',
+          'sales',
+          'expenses',
+          'products',
+          'customers',
+          'suppliers',
+          'audit_logs'
+        ];
+
+        for (const table of tablesToClear) {
+          try {
+            db.exec(`DELETE FROM ${table};`);
+          } catch (e) {
+            console.warn(`Could not clear table ${table}:`, e.message);
+          }
+        }
+
+        try {
+          db.exec("DELETE FROM sqlite_sequence WHERE name IN ('products', 'sales', 'sale_items', 'expenses', 'customers', 'suppliers', 'returns', 'purchase_returns', 'stock_adjustments', 'customer_payments', 'audit_logs');");
+        } catch (e) {}
+
+        try {
+          db.exec("UPDATE settings SET value = '1' WHERE key = 'invoice_next_number';");
+        } catch (e) {}
+
+        db.pragma('foreign_keys = ON');
+      });
+
+      txn();
+      if (typeof db.flush === 'function') db.flush();
+      return { success: true };
+    },
   };
 }
 
