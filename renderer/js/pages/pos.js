@@ -245,12 +245,12 @@ window.POSPage = {
                 <td style="font-weight:600; color:var(--color-text-primary);">${p.name}</td>
                 <td><span class="badge ${p.category === 'Clothes' ? 'badge-clothes' : (p.category === 'Hosiery' ? 'badge-hosiery' : 'badge-perfume')}">${p.category}</span></td>
                 <td style="font-size:var(--text-xs); color:var(--color-text-secondary);">
-                  ${p.category === 'Perfume' ? `${p.size || '50ml'}` : `${p.size || ''} ${p.color ? `(${p.color})` : ''}`.trim() || '-'}
+                  ${p.category === 'Perfume' ? `${p.size || '50ml'}` : `${p.size || '-'}`}
                 </td>
                 <td style="font-weight:700; color:var(--color-accent);">Rs. ${p.sale_price.toLocaleString()}</td>
                 <td>
                   <span class="badge ${p.quantity <= 0 ? 'badge-danger' : (p.quantity <= p.low_stock_threshold ? 'badge-warning' : 'badge-success')}">
-                    ${p.quantity <= 0 ? 'Out of Stock' : `${p.quantity} pcs`}
+                    ${p.quantity <= 0 ? 'Out of Stock' : `${p.quantity} ${formatters.getProductUnit(p)}`}
                   </span>
                 </td>
                 <td>
@@ -295,8 +295,7 @@ window.POSPage = {
       p.name.toLowerCase().includes(q) || 
       (p.barcode && p.barcode.toLowerCase().includes(q)) ||
       (p.sku && p.sku.toLowerCase().includes(q)) ||
-      (p.size && p.size.toLowerCase().includes(q)) ||
-      (p.color && p.color.toLowerCase().includes(q))
+      (p.size && p.size.toLowerCase().includes(q))
     );
     this.renderProductsGrid(filtered);
   },
@@ -323,10 +322,11 @@ window.POSPage = {
       return;
     }
 
+    const unit = formatters.getProductUnit(product);
     const existing = this.cart.find(i => i.product_id === productId);
     if (existing) {
       if (existing.quantity + 1 > product.quantity) {
-        toast.warning(`Cannot add more than available stock (${product.quantity} pcs)`);
+        toast.warning(`Cannot add more than available stock (${product.quantity} ${unit})`);
         return;
       }
       existing.quantity += 1;
@@ -335,9 +335,9 @@ window.POSPage = {
       if (product.category === 'Perfume') {
         variantText = product.size || '50ml';
       } else if (product.category === 'Hosiery') {
-        variantText = `${product.size || ''}${product.color ? ` (${product.color})` : ''}`.trim() || 'Standard';
+        variantText = product.size || 'Standard';
       } else {
-        variantText = [product.color, product.size].filter(Boolean).join(' / ') || 'Standard';
+        variantText = product.size || 'Standard';
       }
 
       this.cart.push({
@@ -364,7 +364,8 @@ window.POSPage = {
     item.quantity += delta;
     if (item.quantity > item.max_stock) {
       item.quantity = item.max_stock;
-      toast.warning(`Maximum available stock reached (${item.max_stock} pcs)`);
+      const unit = formatters.getProductUnit(item);
+      toast.warning(`Maximum available stock reached (${item.max_stock} ${unit})`);
     }
 
     if (item.quantity <= 0) {
@@ -590,12 +591,21 @@ window.POSPage = {
 
       if (printPdf) {
         try {
-          const fullSale = await window.api.sales.get(result.invoice_no);
-          if (fullSale) {
-            await window.api.backup.generateInvoicePDF(fullSale);
+          // Check if auto-print is enabled in settings
+          const appSettings = await window.api.settings.get();
+          const autoPrint = appSettings.auto_print_receipt !== 'false';
+
+          if (autoPrint) {
+            const fullSale = await window.api.sales.get(result.invoice_no);
+            if (fullSale) {
+              // Direct silent thermal print — no save dialog, no manual steps
+              await window.api.print.thermalReceipt(fullSale);
+              toast.success('Receipt printed!');
+            }
           }
-        } catch (pdfErr) {
-          console.warn('PDF prompt skipped:', pdfErr);
+        } catch (printErr) {
+          console.warn('Thermal print failed:', printErr);
+          toast.warning('Could not print receipt: ' + (printErr.message || 'Printer error'));
         }
       }
 

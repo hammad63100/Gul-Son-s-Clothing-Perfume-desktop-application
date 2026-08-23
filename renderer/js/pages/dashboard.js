@@ -437,7 +437,7 @@ window.DashboardPage = {
             <tr>
               <td style="font-weight:600;">${p.name}</td>
               <td><span class="badge badge-clothes">${p.size || ''} ${p.color || ''}</span></td>
-              <td style="font-weight:700;">${p.total_sold} pcs</td>
+              <td style="font-weight:700;">${p.total_sold} ${formatters.getProductUnit({ ...p, category: 'Clothes' })}</td>
               <td style="color:var(--color-accent); font-weight:700;">${formatters.currency(p.total_revenue, curr)}</td>
             </tr>
           `).join('');
@@ -454,7 +454,7 @@ window.DashboardPage = {
             <tr>
               <td style="font-weight:600;">${p.name}</td>
               <td><span class="badge badge-hosiery">${p.size || 'Standard'}${p.color ? ` (${p.color})` : ''}</span></td>
-              <td style="font-weight:700;">${p.total_sold} pcs</td>
+              <td style="font-weight:700;">${p.total_sold} ${formatters.getProductUnit({ ...p, category: 'Hosiery' })}</td>
               <td style="color:var(--color-accent); font-weight:700;">${formatters.currency(p.total_revenue, curr)}</td>
             </tr>
           `).join('');
@@ -471,7 +471,7 @@ window.DashboardPage = {
             <tr>
               <td style="font-weight:600;">${p.name}</td>
               <td><span class="badge badge-perfume">${p.size || 'Bottle'}</span></td>
-              <td style="font-weight:700;">${p.total_sold} pcs</td>
+              <td style="font-weight:700;">${p.total_sold} ${formatters.getProductUnit({ ...p, category: 'Perfume' })}</td>
               <td style="color:var(--color-accent); font-weight:700;">${formatters.currency(p.total_revenue, curr)}</td>
             </tr>
           `).join('');
@@ -500,11 +500,12 @@ window.DashboardPage = {
       } else {
         restockBody.innerHTML = summary.lowStockProducts.slice(0, 5).map(p => {
           const badgeClass = p.category === 'Clothes' ? 'badge-clothes' : (p.category === 'Hosiery' ? 'badge-hosiery' : 'badge-perfume');
+          const unit = formatters.getProductUnit(p);
           return `
             <tr>
               <td style="font-weight:600;">${p.name}</td>
               <td><span class="badge ${badgeClass}">${p.category}</span></td>
-              <td><span class="badge badge-warning">${p.quantity} pcs</span></td>
+              <td><span class="badge badge-warning">${p.quantity} ${unit}</span></td>
               <td>
                 <button class="btn btn-secondary btn-sm" onclick="InventoryPage.openStockInModal(${p.id})">+ Stock</button>
               </td>

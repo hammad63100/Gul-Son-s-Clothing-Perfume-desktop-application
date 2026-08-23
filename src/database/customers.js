@@ -152,7 +152,7 @@ function customersDB(db) {
           reference: ret.sale_invoice_no,
           amount_debit: 0,
           amount_credit: ret.refund_amount, // Reduces balance
-          description: `Return: ${ret.product_name} (${ret.quantity} pcs)`,
+          description: `Return: ${ret.product_name} (${ret.quantity} ${ret.product_size || 'qty'})`,
           method: ret.refund_type || 'Adjustment'
         });
       });

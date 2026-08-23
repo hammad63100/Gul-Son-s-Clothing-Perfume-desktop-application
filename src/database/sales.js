@@ -20,10 +20,12 @@ function salesDB(db) {
         for (const item of items) {
           const quantity = Number(item.quantity);
           const price = Number(item.price_at_sale);
-          if (!Number.isInteger(quantity) || quantity <= 0) throw new Error('Each item quantity must be a whole number greater than zero');
+          if (!Number.isFinite(quantity) || quantity <= 0) throw new Error('Each item quantity must be greater than zero');
           if (!Number.isFinite(price) || price < 0) throw new Error('Each item price must be a valid non-negative number');
           const product = db.prepare('SELECT * FROM products WHERE id = ? AND is_active = 1').get(item.product_id);
           if (!product) throw new Error('One or more products are unavailable');
+          const isAttar = String(product.fragrance_type || '').trim().toLowerCase() === 'attar';
+          if (!isAttar && !Number.isInteger(quantity)) throw new Error('Only Attar can use partial ml quantities');
           const requested = (requestedQuantities.get(product.id) || 0) + quantity;
           if (product.quantity < requested) throw new Error(`Insufficient stock for ${product.name}. Available: ${product.quantity}`);
           requestedQuantities.set(product.id, requested);
@@ -71,8 +73,8 @@ function salesDB(db) {
 
         // Insert sale items and decrement stock
         const insertItem = db.prepare(`
-          INSERT INTO sale_items (sale_id, product_id, product_name, product_size, product_color, quantity, price_at_sale, purchase_price_at_sale, line_total)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO sale_items (sale_id, product_id, product_name, product_size, product_color, quantity, quantity_unit, price_at_sale, purchase_price_at_sale, line_total)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         const decrementStock = db.prepare("UPDATE products SET quantity = MAX(0, quantity - ?), updated_at = datetime('now', 'localtime') WHERE id = ?");
@@ -86,8 +88,9 @@ function salesDB(db) {
             product ? product.size : null,
             product ? product.color : null,
             item.quantity,
+            item.quantity_unit || (product ? product.inventory_unit : 'pcs'),
             item.price_at_sale,
-            product ? product.purchase_price : 0,
+            product ? (String(product.fragrance_type || '').trim().toLowerCase() === 'attar' ? Number(product.purchase_price) / Number(product.retail_quantity || 1) : product.purchase_price) : 0,
             item.price_at_sale * item.quantity
           );
           decrementStock.run(item.quantity, item.product_id);

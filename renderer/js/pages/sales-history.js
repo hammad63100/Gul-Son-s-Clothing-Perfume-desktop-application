@@ -191,11 +191,11 @@ window.SalesHistoryPage = {
               ${sale.items.map(item => `
                 <tr>
                   <td style="font-weight:600;">${item.product_name}</td>
-                  <td>${item.product_size || item.product_color ? `${item.product_size || ''} ${item.product_color || ''}` : '-'}</td>
-                  <td><span class="badge badge-info">${item.quantity} pcs</span></td>
+                  <td>${item.product_size || '-'}</td>
+                  <td><span class="badge badge-info">${item.quantity} ${formatters.getProductUnit(item)}</span></td>
                   <td>Rs. ${item.price_at_sale}</td>
                   <td>
-                    <button class="btn btn-primary btn-sm" style="padding:2px 8px;" onclick="SalesHistoryPage.openItemReturnModal(${sale.id}, ${item.product_id}, '${item.product_name.replace(/'/g, "\\'")}', ${item.quantity}, ${item.price_at_sale})">Return</button>
+                    <button class="btn btn-primary btn-sm" style="padding:2px 8px;" onclick="SalesHistoryPage.openItemReturnModal(${sale.id}, ${item.product_id}, '${item.product_name.replace(/'/g, "\\'")}', ${item.quantity}, ${item.price_at_sale}, '${(item.product_size || '').replace(/'/g, "\\'")}')">Return</button>
                   </td>
                 </tr>
               `).join('')}
@@ -209,12 +209,13 @@ window.SalesHistoryPage = {
     }
   },
 
-  openItemReturnModal(saleId, productId, prodName, maxQty, price) {
+  openItemReturnModal(saleId, productId, prodName, maxQty, price, size = '') {
+    const unit = formatters.getProductUnit({ product_name: prodName, product_size: size });
     modal.show({
       title: `Process Return — ${prodName}`,
       bodyHTML: `
         <div class="form-group">
-          <label class="form-label">Return Quantity (Max: ${maxQty} pcs) *</label>
+          <label class="form-label">Return Quantity (Max: ${maxQty} ${unit}) *</label>
           <input type="number" class="form-input" id="ret-item-qty" value="1" min="1" max="${maxQty}" required>
         </div>
 
@@ -362,7 +363,7 @@ window.SalesHistoryPage = {
           <td>${formatters.dateTime(r.created_at)}</td>
           <td style="font-weight:700; color:var(--color-accent);">${r.sale_invoice_no}</td>
           <td style="font-weight:600;">${r.product_name}</td>
-          <td><span class="badge badge-warning">${r.quantity} pcs</span></td>
+          <td><span class="badge badge-warning">${r.quantity} ${formatters.getProductUnit(r)}</span></td>
           <td style="font-weight:700; color:var(--color-danger);">${formatters.currency(r.refund_amount, curr)}</td>
           <td>${r.reason || '-'}</td>
           <td><span class="badge badge-gold">${r.refund_type || 'Cash Refund'}</span></td>
@@ -415,7 +416,8 @@ window.SalesHistoryPage = {
                   <td>
                     <div class="flex gap-2">
                       <button class="btn btn-secondary btn-sm" onclick="SalesHistoryPage.viewInvoiceDetails(${s.id})">Details</button>
-                      <button class="btn btn-ghost btn-sm" onclick="SalesHistoryPage.printInvoice(${s.id})">Print PDF</button>
+                      <button class="btn btn-primary btn-sm" onclick="SalesHistoryPage.printThermalReceipt(${s.id})">🖨 Print Receipt</button>
+                      <button class="btn btn-ghost btn-sm" onclick="SalesHistoryPage.printInvoice(${s.id})">Save PDF</button>
                     </div>
                   </td>
                 </tr>
@@ -465,7 +467,7 @@ window.SalesHistoryPage = {
             ${sale.items.map(item => `
               <tr>
                 <td style="font-weight:600;">${item.product_name}</td>
-                <td>${item.product_size || item.product_color ? `${item.product_size || ''} ${item.product_color || ''}` : '-'}</td>
+                <td>${item.product_size || '-'}</td>
                 <td>${item.quantity}</td>
                 <td>${formatters.currency(item.price_at_sale, curr)}</td>
                 <td style="font-weight:700;">${formatters.currency(item.line_total, curr)}</td>
@@ -484,9 +486,23 @@ window.SalesHistoryPage = {
       `,
       footerHTML: `
         <button class="btn btn-secondary" onclick="modal.hide()">Close</button>
-        <button class="btn btn-primary" onclick="SalesHistoryPage.printInvoice(${saleId})">Print Invoice PDF</button>
+        <button class="btn btn-primary" onclick="SalesHistoryPage.printThermalReceipt(${saleId})">🖨 Print Receipt</button>
+        <button class="btn btn-ghost" onclick="SalesHistoryPage.printInvoice(${saleId})">Save PDF</button>
       `
     });
+  },
+
+  async printThermalReceipt(saleId) {
+    const sale = await window.api.sales.get(saleId);
+    if (!sale) return;
+
+    try {
+      await window.api.print.thermalReceipt(sale);
+      toast.success('Receipt printed!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to print receipt: ' + (err.message || 'Printer error'));
+    }
   },
 
   async printInvoice(saleId) {

@@ -46,11 +46,12 @@ window.CategoriesPage = {
                 <thead>
                   <tr>
                     <th>Brand Name</th>
+                    <th>Category</th>
                     <th>Action</th>
                   </tr>
                 </thead>
                 <tbody id="brand-table-body">
-                  <tr><td colspan="2" style="text-align:center;"><div class="spinner" style="margin:10px auto;"></div></td></tr>
+                  <tr><td colspan="3" style="text-align:center;"><div class="spinner" style="margin:10px auto;"></div></td></tr>
                 </tbody>
               </table>
             </div>
@@ -108,6 +109,7 @@ window.CategoriesPage = {
         brandBody.innerHTML = brands.map(b => `
           <tr>
             <td style="font-weight:600;">${b.name}</td>
+            <td><span class="badge ${b.category === 'Clothes' ? 'badge-clothes' : (b.category === 'Hosiery' ? 'badge-hosiery' : 'badge-perfume')}">${b.category || 'Clothes'}</span></td>
             <td>
               <button class="btn btn-ghost btn-sm" style="color:var(--color-danger);" onclick="CategoriesPage.deleteBrand(${b.id})">Delete</button>
             </td>
@@ -188,6 +190,14 @@ window.CategoriesPage = {
           <label class="form-label">Brand Name *</label>
           <input type="text" class="form-input" id="new-brand-name" placeholder="e.g. Dior / Outfitters / J." required>
         </div>
+        <div class="form-group" style="margin-top:var(--space-3);">
+          <label class="form-label">Category *</label>
+          <select class="form-select" id="new-brand-category">
+            <option value="Clothes">👔 Clothes</option>
+            <option value="Hosiery">🧦 Hosiery</option>
+            <option value="Perfume">🧴 Perfume</option>
+          </select>
+        </div>
       `,
       footerHTML: `
         <button class="btn btn-secondary" onclick="modal.hide()">Cancel</button>
@@ -198,10 +208,11 @@ window.CategoriesPage = {
 
   async saveBrand() {
     const name = document.getElementById('new-brand-name').value.trim();
+    const category = document.getElementById('new-brand-category')?.value || 'Clothes';
     if (!name) return toast.error('Brand name is required');
     try {
-      await window.api.master.addBrand(name);
-      toast.success('Brand added!');
+      await window.api.master.addBrand(name, category);
+      toast.success(`Brand "${name}" added to ${category}!`);
       modal.hide();
       this.loadData();
     } catch (err) {

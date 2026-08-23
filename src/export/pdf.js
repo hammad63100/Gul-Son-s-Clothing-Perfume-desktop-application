@@ -98,7 +98,7 @@ async function generateInvoicePDF(saleData, settings = {}, filePath) {
         doc.fillColor('#000000');
 
         xPos = 45;
-        const variantStr = [item.product_size, item.product_color].filter(Boolean).join(' / ') || '-';
+        const variantStr = item.product_size || '-';
         const rowData = [
           String(index + 1),
           String(item.product_name || 'Unknown'),

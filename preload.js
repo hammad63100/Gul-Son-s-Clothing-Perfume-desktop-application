@@ -25,8 +25,8 @@ contextBridge.exposeInMainWorld('api', {
     getCategories: (type) => ipcRenderer.invoke('master:getCategories', type),
     addCategory: (name, type) => ipcRenderer.invoke('master:addCategory', name, type),
     deleteCategory: (id) => ipcRenderer.invoke('master:deleteCategory', id),
-    getBrands: () => ipcRenderer.invoke('master:getBrands'),
-    addBrand: (name) => ipcRenderer.invoke('master:addBrand', name),
+    getBrands: (category) => ipcRenderer.invoke('master:getBrands', category),
+    addBrand: (name, category) => ipcRenderer.invoke('master:addBrand', name, category),
     deleteBrand: (id) => ipcRenderer.invoke('master:deleteBrand', id),
     getFragranceTypes: () => ipcRenderer.invoke('master:getFragranceTypes'),
     addFragranceType: (name) => ipcRenderer.invoke('master:addFragranceType', name),
@@ -115,6 +115,13 @@ contextBridge.exposeInMainWorld('api', {
     getSafetyBackups: () => ipcRenderer.invoke('backup:getSafetyBackups'),
     openSafetyBackupFolder: () => ipcRenderer.invoke('backup:openSafetyBackupFolder'),
     generateInvoicePDF: (saleData) => ipcRenderer.invoke('backup:generateInvoicePDF', saleData),
+  },
+
+  // ─── Thermal Receipt Printer (BT-801 / 80mm) ───
+  print: {
+    thermalReceipt: (saleData) => ipcRenderer.invoke('print:thermalReceipt', saleData),
+    getPrinters: () => ipcRenderer.invoke('print:getPrinters'),
+    testPrint: () => ipcRenderer.invoke('print:testPrint'),
   },
 
   // ─── Window Controls ───

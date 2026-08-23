@@ -20,14 +20,25 @@ function masterDataDB(db) {
     },
 
     // Brands
-    getBrands() {
-      return db.prepare('SELECT * FROM brands ORDER BY name').all();
+    getBrands(category) {
+      if (category) {
+        return db.prepare("SELECT * FROM brands WHERE category = ? OR category = 'All' ORDER BY name").all(category);
+      }
+      return db.prepare('SELECT * FROM brands ORDER BY category, name').all();
     },
 
-    addBrand(name) {
-      const stmt = db.prepare('INSERT OR IGNORE INTO brands (name) VALUES (?)');
-      const res = stmt.run(name);
-      return { id: res.lastInsertRowid, name };
+    addBrand(name, category = 'Clothes') {
+      const trimmedName = String(name || '').trim();
+      if (!trimmedName) throw new Error('Brand name is required');
+      const cat = category || 'Clothes';
+      const stmt = db.prepare('INSERT OR IGNORE INTO brands (name, category) VALUES (?, ?)');
+      const res = stmt.run(trimmedName, cat);
+      return { id: res.lastInsertRowid, name: trimmedName, category: cat };
+    },
+
+    deleteBrand(id) {
+      db.prepare('DELETE FROM brands WHERE id = ?').run(id);
+      return { success: true };
     },
 
     // Fragrance Types

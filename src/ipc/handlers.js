@@ -21,6 +21,7 @@ const {
 const { generateInvoicePDF } = require('../export/pdf');
 const { exportReportToExcel } = require('../export/excel');
 const { buildWhatsAppDesktopUrl } = require('../utils/whatsapp');
+const { printReceipt, printTestPage, getAvailablePrinters } = require('../print/thermal-printer');
 
 function registerHandlers(db, ipcMain) {
   const products = productsDB(db);
@@ -272,8 +273,8 @@ function registerHandlers(db, ipcMain) {
   ipcMain.handle('master:getCategories', (_, type) => masterData.getCategories(type));
   ipcMain.handle('master:addCategory', (_, name, type) => masterData.addCategory(name, type));
   ipcMain.handle('master:deleteCategory', (_, id) => masterData.deleteCategory(id));
-  ipcMain.handle('master:getBrands', () => masterData.getBrands());
-  ipcMain.handle('master:addBrand', (_, name) => masterData.addBrand(name));
+  ipcMain.handle('master:getBrands', (_, category) => masterData.getBrands(category));
+  ipcMain.handle('master:addBrand', (_, name, category) => masterData.addBrand(name, category));
   ipcMain.handle('master:deleteBrand', (_, id) => masterData.deleteBrand(id));
   ipcMain.handle('master:getFragranceTypes', () => masterData.getFragranceTypes());
   ipcMain.handle('master:addFragranceType', (_, name) => masterData.addFragranceType(name));
@@ -404,6 +405,33 @@ function registerHandlers(db, ipcMain) {
       return pdfResult;
     }
     return null;
+  });
+
+  // ─── Thermal Receipt Printer (BT-801 / 80mm) ───
+
+  // Silent print a receipt directly to the configured thermal printer
+  ipcMain.handle('print:thermalReceipt', async (_, saleData) => {
+    if (!saleData || typeof saleData !== 'object') {
+      throw new Error('Invalid sale data for printing');
+    }
+    const settingsData = settings.get();
+    const printerName = settingsData.thermal_printer_name || '';
+    return await printReceipt(saleData, settingsData, printerName);
+  });
+
+  // Return list of available system printers for settings UI
+  ipcMain.handle('print:getPrinters', async () => {
+    return await getAvailablePrinters();
+  });
+
+  // Print a test page to verify printer connectivity
+  ipcMain.handle('print:testPrint', async () => {
+    const settingsData = settings.get();
+    const printerName = settingsData.thermal_printer_name || '';
+    if (!printerName) {
+      throw new Error('No thermal printer configured. Please select a printer in Settings first.');
+    }
+    return await printTestPage(settingsData, printerName);
   });
 }
 

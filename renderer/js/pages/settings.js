@@ -299,6 +299,41 @@ window.SettingsPage = {
               </div>
             </div>
 
+            <!-- ─── Thermal Receipt Printer (BT-801 / 80mm) ─── -->
+            <div style="margin-top:var(--space-5); padding-top:var(--space-4); border-top:1px solid var(--color-border);">
+              <h4 style="font-size:var(--text-sm); font-weight:700; color:var(--color-accent); margin-bottom:var(--space-3); display:flex; align-items:center; gap:var(--space-2);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px; height:18px;"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Thermal Receipt Printer (80mm)
+              </h4>
+              
+              <div class="form-row">
+                <div class="form-group" style="flex:2;">
+                  <label class="form-label">Printer Device</label>
+                  <div style="display:flex; gap:var(--space-2);">
+                    <select class="form-select" id="set-thermal-printer" style="flex:1;">
+                      <option value="">— No Printer Selected —</option>
+                    </select>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="SettingsPage.refreshPrinterList()" title="Refresh printer list">🔄</button>
+                  </div>
+                  <span style="font-size:10px; color:var(--color-text-muted); margin-top:2px; display:block;">Select the BT-801 or your Bluetooth thermal printer from the list above</span>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Auto-Print on Sale</label>
+                  <select class="form-select" id="set-auto-print">
+                    <option value="true">✅ Enabled (Auto-print receipt)</option>
+                    <option value="false">❌ Disabled (Manual print only)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style="display:flex; gap:var(--space-2); margin-top:var(--space-3);">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="SettingsPage.testPrint()">
+                  🖨 Test Print
+                </button>
+                <span id="set-printer-status" style="font-size:11px; color:var(--color-text-muted); display:flex; align-items:center;"></span>
+              </div>
+            </div>
+
             <button type="submit" class="btn btn-primary" style="margin-top:var(--space-5);">Save Configuration</button>
           </form>
         </div>
@@ -377,6 +412,13 @@ window.SettingsPage = {
       if (document.getElementById('set-threshold')) document.getElementById('set-threshold').value = s.low_stock_threshold || '5';
       if (document.getElementById('set-inv-prefix')) document.getElementById('set-inv-prefix').value = s.invoice_prefix || 'GS';
       if (document.getElementById('set-reminder')) document.getElementById('set-reminder').value = s.backup_reminder || 'true';
+
+      // ─── Thermal Printer Settings ───
+      if (document.getElementById('set-auto-print')) {
+        document.getElementById('set-auto-print').value = s.auto_print_receipt || 'true';
+      }
+      // Populate printer dropdown
+      await this.refreshPrinterList(s.thermal_printer_name || '');
     } catch (err) {
       console.error(err);
       toast.error('Failed to load shop settings');
@@ -394,12 +436,103 @@ window.SettingsPage = {
       backup_reminder: document.getElementById('set-reminder').value,
     };
 
+    // Include thermal printer settings if the fields exist
+    const printerSelect = document.getElementById('set-thermal-printer');
+    const autoPrintSelect = document.getElementById('set-auto-print');
+    if (printerSelect) data.thermal_printer_name = printerSelect.value;
+    if (autoPrintSelect) data.auto_print_receipt = autoPrintSelect.value;
+
     try {
       await window.api.settings.update(data);
       toast.success('Settings saved successfully!');
     } catch (err) {
       console.error(err);
       toast.error('Failed to save settings: ' + err.message);
+    }
+  },
+
+  async refreshPrinterList(selectedPrinter) {
+    const select = document.getElementById('set-thermal-printer');
+    if (!select) return;
+
+    const statusEl = document.getElementById('set-printer-status');
+
+    try {
+      const printers = await window.api.print.getPrinters();
+      select.innerHTML = '<option value="">— No Printer Selected —</option>';
+
+      if (printers && printers.length > 0) {
+        printers.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.name;
+          opt.textContent = `${p.name}${p.isDefault ? ' (Default)' : ''}`;
+          select.appendChild(opt);
+        });
+
+        // If a printer name was passed (from saved settings), select it
+        const savedName = selectedPrinter !== undefined ? selectedPrinter : select.value;
+        if (savedName) {
+          select.value = savedName;
+          // If the saved name isn't in the list anymore, warn
+          if (select.value !== savedName && statusEl) {
+            statusEl.textContent = `⚠ Previously configured printer "${savedName}" not found`;
+            statusEl.style.color = 'var(--color-warning)';
+          }
+        }
+
+        if (statusEl && select.value) {
+          statusEl.textContent = `✅ ${printers.length} printer(s) detected`;
+          statusEl.style.color = 'var(--color-success)';
+        }
+      } else {
+        if (statusEl) {
+          statusEl.textContent = '⚠ No printers detected. Pair your BT-801 via Bluetooth first.';
+          statusEl.style.color = 'var(--color-warning)';
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load printers:', err);
+      if (statusEl) {
+        statusEl.textContent = '❌ Could not detect printers';
+        statusEl.style.color = 'var(--color-danger)';
+      }
+    }
+  },
+
+  async testPrint() {
+    const statusEl = document.getElementById('set-printer-status');
+    const printerSelect = document.getElementById('set-thermal-printer');
+    const printerName = printerSelect ? printerSelect.value : '';
+
+    if (!printerName) {
+      toast.warning('Please select a printer first, then click Test Print.');
+      return;
+    }
+
+    // Save the printer setting before testing so the backend uses it
+    try {
+      await window.api.settings.update({ thermal_printer_name: printerName });
+    } catch (e) {}
+
+    if (statusEl) {
+      statusEl.textContent = '⏳ Sending test page...';
+      statusEl.style.color = 'var(--color-info)';
+    }
+
+    try {
+      await window.api.print.testPrint();
+      toast.success('Test page sent to ' + printerName);
+      if (statusEl) {
+        statusEl.textContent = '✅ Test print successful!';
+        statusEl.style.color = 'var(--color-success)';
+      }
+    } catch (err) {
+      console.error('Test print failed:', err);
+      toast.error('Test print failed: ' + (err.message || 'Unknown error'));
+      if (statusEl) {
+        statusEl.textContent = '❌ Test print failed: ' + (err.message || 'Check printer');
+        statusEl.style.color = 'var(--color-danger)';
+      }
     }
   },
 

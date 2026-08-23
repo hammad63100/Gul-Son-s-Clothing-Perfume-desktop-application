@@ -248,7 +248,9 @@ async function initDatabase(customDbPath = null) {
       purchase_price REAL NOT NULL DEFAULT 0,
       sale_price REAL NOT NULL DEFAULT 0,
       wholesale_price REAL NOT NULL DEFAULT 0,
-      quantity INTEGER NOT NULL DEFAULT 0,
+      quantity REAL NOT NULL DEFAULT 0,
+      inventory_unit TEXT NOT NULL DEFAULT 'pcs',
+      retail_quantity REAL NOT NULL DEFAULT 1,
       low_stock_threshold INTEGER NOT NULL DEFAULT 5,
       supplier TEXT,
       is_active INTEGER NOT NULL DEFAULT 1,
@@ -266,6 +268,7 @@ async function initDatabase(customDbPath = null) {
     CREATE TABLE IF NOT EXISTS brands (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
+      category TEXT NOT NULL DEFAULT 'Clothes',
       created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
     );
 
@@ -328,7 +331,8 @@ async function initDatabase(customDbPath = null) {
       product_name TEXT NOT NULL,
       product_size TEXT,
       product_color TEXT,
-      quantity INTEGER NOT NULL,
+      quantity REAL NOT NULL,
+      quantity_unit TEXT,
       price_at_sale REAL NOT NULL,
       purchase_price_at_sale REAL NOT NULL DEFAULT 0,
       line_total REAL NOT NULL,
@@ -418,12 +422,42 @@ async function initDatabase(customDbPath = null) {
   safeAddColumn('products', 'gender TEXT');
   safeAddColumn('products', 'sku TEXT');
   safeAddColumn('products', 'wholesale_price REAL NOT NULL DEFAULT 0');
+  safeAddColumn('products', "inventory_unit TEXT NOT NULL DEFAULT 'pcs'");
+  safeAddColumn('products', 'retail_quantity REAL NOT NULL DEFAULT 1');
+  safeAddColumn('sale_items', 'quantity_unit TEXT');
   safeAddColumn('customers', 'address TEXT');
   safeAddColumn('customers', 'email TEXT');
   safeAddColumn('customers', 'customer_code TEXT');
   safeAddColumn('customers', 'total_payments REAL NOT NULL DEFAULT 0');
   safeAddColumn('customers', 'outstanding_balance REAL NOT NULL DEFAULT 0');
   safeAddColumn('returns', "refund_type TEXT DEFAULT 'Cash Refund'");
+  safeAddColumn('brands', "category TEXT NOT NULL DEFAULT 'Clothes'");
+
+  // Update known perfume/hosiery brands to correct category for existing databases
+  try {
+    db.exec("UPDATE brands SET category = 'Perfume' WHERE name IN ('Dior', 'Chanel', 'Lattafa', 'Rasasi', 'Junaid Jamshed', 'Ameer Al Oudh', 'Ajmal') AND (category = 'Clothes' OR category IS NULL);");
+    db.exec("UPDATE brands SET category = 'Hosiery' WHERE name IN ('Oxfo', 'Bata', 'Sahar', 'Lucky', 'Servis', 'Standard Hosiery') AND (category = 'Clothes' OR category IS NULL);");
+  } catch (e) {}
+
+  // Update known fragrance types for existing databases to standard 3
+  try {
+    db.exec(`
+      DELETE FROM fragrance_types WHERE LOWER(TRIM(name)) IN (
+        'eau de parfum (edp)',
+        'eau de toilette (edt)',
+        'pure oud / attar',
+        'extrait de parfum',
+        'cologne (edc)',
+        'concentrated perfume oil (cpo)',
+        'body spray'
+      );
+    `);
+
+    const insertFT = db.prepare('INSERT OR IGNORE INTO fragrance_types (name) VALUES (?)');
+    insertFT.run('Body spray');
+    insertFT.run('Attar');
+    insertFT.run('Normal Spray');
+  } catch (e) {}
 
   // ─── Create Indexes ───
   db.exec(`
@@ -439,7 +473,7 @@ async function initDatabase(customDbPath = null) {
   // ─── Seed Default Data ───
   const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
   const insertCategory = db.prepare('INSERT OR IGNORE INTO categories (name, type) VALUES (?, ?)');
-  const insertBrand = db.prepare('INSERT OR IGNORE INTO brands (name) VALUES (?)');
+  const insertBrand = db.prepare('INSERT OR IGNORE INTO brands (name, category) VALUES (?, ?)');
   const insertFragranceType = db.prepare('INSERT OR IGNORE INTO fragrance_types (name) VALUES (?)');
 
   const seedAll = db.transaction(() => {
@@ -451,6 +485,8 @@ async function initDatabase(customDbPath = null) {
     insertSetting.run('backup_reminder', 'true');
     insertSetting.run('invoice_prefix', 'GS');
     insertSetting.run('invoice_next_number', '1');
+    insertSetting.run('thermal_printer_name', '');
+    insertSetting.run('auto_print_receipt', 'true');
 
     // Default Categories
     const defaultCats = [
@@ -474,21 +510,38 @@ async function initDatabase(customDbPath = null) {
       insertCategory.run(catName, catType);
     }
 
-    // Default Brands
-    const defaultBrands = ['Gul Ahmed', 'J.', 'Sapphire', 'Al-Karam', 'Charcoal', 'Dior', 'Chanel', 'Lattafa', 'Rasasi', 'Junaid Jamshed'];
-    for (const b of defaultBrands) {
-      insertBrand.run(b);
+    // Default Brands by Category
+    const defaultBrands = [
+      ['Gul Ahmed', 'Clothes'],
+      ['J.', 'Clothes'],
+      ['Sapphire', 'Clothes'],
+      ['Al-Karam', 'Clothes'],
+      ['Charcoal', 'Clothes'],
+      ['Khaadi', 'Clothes'],
+      ['Bonanza Satrangi', 'Clothes'],
+      ['Dior', 'Perfume'],
+      ['Chanel', 'Perfume'],
+      ['Lattafa', 'Perfume'],
+      ['Rasasi', 'Perfume'],
+      ['Junaid Jamshed', 'Perfume'],
+      ['Ameer Al Oudh', 'Perfume'],
+      ['Ajmal', 'Perfume'],
+      ['Oxfo', 'Hosiery'],
+      ['Bata', 'Hosiery'],
+      ['Sahar', 'Hosiery'],
+      ['Lucky', 'Hosiery'],
+      ['Servis', 'Hosiery'],
+      ['Standard Hosiery', 'Hosiery'],
+    ];
+    for (const [bName, bCat] of defaultBrands) {
+      insertBrand.run(bName, bCat);
     }
 
     // Default Fragrance Types
     const defaultFragranceTypes = [
-      'Eau de Parfum (EDP)',
-      'Eau de Toilette (EDT)',
-      'Pure Oud / Attar',
-      'Body Spray',
-      'Extrait de Parfum',
-      'Cologne (EDC)',
-      'Concentrated Perfume Oil (CPO)'
+      'Body spray',
+      'Attar',
+      'Normal Spray'
     ];
     for (const ft of defaultFragranceTypes) {
       insertFragranceType.run(ft);

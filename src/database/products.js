@@ -75,8 +75,15 @@ function productsDB(db) {
 
     if (!isUpdate || data.quantity !== undefined) {
       const quantity = nonNegativeNumber(data.quantity ?? 0, 'Quantity');
-      if (!Number.isInteger(quantity)) throw new Error('Quantity must be a whole number (pieces/packs)');
+      const isAttar = String(cleaned.fragrance_type || data.fragrance_type || '').trim().toLowerCase() === 'attar';
+      if (!isAttar && !Number.isInteger(quantity)) throw new Error('Quantity must be a whole number');
       cleaned.quantity = quantity;
+    }
+
+    if (!isUpdate || data.inventory_unit !== undefined) cleaned.inventory_unit = String(data.inventory_unit || 'pcs').trim() || 'pcs';
+    if (!isUpdate || data.retail_quantity !== undefined) {
+      cleaned.retail_quantity = nonNegativeNumber(data.retail_quantity ?? 1, 'Retail quantity');
+      if (cleaned.retail_quantity <= 0) throw new Error('Retail quantity must be greater than zero');
     }
 
     if (!isUpdate || data.low_stock_threshold !== undefined) {
@@ -140,8 +147,8 @@ function productsDB(db) {
     add(data) {
       const sanitized = validateAndSanitizeProduct(data, false);
       const stmt = db.prepare(`
-        INSERT INTO products (name, category, brand, size, color, fabric, fragrance_type, gender, barcode, sku, purchase_price, sale_price, wholesale_price, quantity, low_stock_threshold, supplier)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO products (name, category, brand, size, color, fabric, fragrance_type, gender, barcode, sku, purchase_price, sale_price, wholesale_price, quantity, inventory_unit, retail_quantity, low_stock_threshold, supplier)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       const result = stmt.run(
         sanitized.name,
@@ -158,6 +165,8 @@ function productsDB(db) {
         sanitized.sale_price,
         sanitized.wholesale_price,
         sanitized.quantity,
+        sanitized.inventory_unit,
+        sanitized.retail_quantity,
         sanitized.low_stock_threshold,
         sanitized.supplier || null
       );
@@ -169,7 +178,7 @@ function productsDB(db) {
       const fields = [];
       const params = [];
 
-      const allowedFields = ['name', 'category', 'brand', 'size', 'color', 'fabric', 'fragrance_type', 'gender', 'barcode', 'sku', 'purchase_price', 'sale_price', 'wholesale_price', 'quantity', 'low_stock_threshold', 'supplier'];
+      const allowedFields = ['name', 'category', 'brand', 'size', 'color', 'fabric', 'fragrance_type', 'gender', 'barcode', 'sku', 'purchase_price', 'sale_price', 'wholesale_price', 'quantity', 'inventory_unit', 'retail_quantity', 'low_stock_threshold', 'supplier'];
       for (const field of allowedFields) {
         if (sanitized[field] !== undefined) {
           fields.push(`${field} = ?`);
@@ -194,10 +203,12 @@ function productsDB(db) {
     },
 
     stockIn(id, quantity, supplier, date) {
-      quantity = positiveInteger(quantity, 'Stock-in quantity');
+      quantity = nonNegativeNumber(quantity, 'Stock-in quantity');
       const txn = db.transaction(() => {
         const product = this.get(id);
         if (!product || !product.is_active) throw new Error('Active product not found');
+        const isAttar = String(product.fragrance_type || '').trim().toLowerCase() === 'attar';
+        if (quantity <= 0 || (!isAttar && !Number.isInteger(quantity))) throw new Error(isAttar ? 'Stock-in quantity must be greater than zero' : 'Stock-in quantity must be a whole number');
         db.prepare("UPDATE products SET quantity = quantity + ?, updated_at = datetime('now', 'localtime') WHERE id = ?").run(quantity, id);
         db.prepare(`
           INSERT INTO stock_adjustments (product_id, product_name, adjustment_type, quantity, reason)

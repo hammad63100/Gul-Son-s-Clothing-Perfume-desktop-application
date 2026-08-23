@@ -151,11 +151,11 @@ window.InventoryPage = {
         const isLow = !isOut && p.quantity <= p.low_stock_threshold;
         const variantText = [];
         if (p.size) variantText.push(`Size: ${p.size}`);
-        if (p.color) variantText.push(`Color: ${p.color}`);
         if (p.fabric) variantText.push(`Fabric: ${p.fabric}`);
         if (p.fragrance_type) variantText.push(`Type: ${p.fragrance_type}`);
         if (p.gender) variantText.push(`Gender: ${p.gender}`);
 
+        const unit = formatters.getProductUnit(p);
         return `
           <tr>
             <td style="font-weight:600; color:var(--color-text-primary);">${p.name}</td>
@@ -167,12 +167,13 @@ window.InventoryPage = {
             <td style="font-weight:600; color:var(--color-accent);">${formatters.currency(p.sale_price, curr)}</td>
             <td>
               <span class="badge ${isOut ? 'badge-danger' : (isLow ? 'badge-warning' : 'badge-success')}">
-                ${isOut ? 'OUT OF STOCK (0 pcs)' : `${p.quantity} pcs`}
+                ${isOut ? `OUT OF STOCK (0 ${unit})` : `${p.quantity} ${unit}`}
               </span>
             </td>
             <td>
               <div class="flex gap-2">
                 <button class="btn btn-secondary btn-sm" onclick="InventoryPage.openStockInModal(${p.id})">+ Stock</button>
+                ${(p.fragrance_type || '').trim().toLowerCase() === 'attar' ? `<button class="btn btn-primary btn-sm" onclick="InventoryPage.openCustomSaleModal(${p.id})">Custom Sale</button>` : ''}
                 <button class="btn btn-warning btn-sm" onclick="InventoryPage.openReturnToSupplierModal(${p.id})">↩ Return</button>
                 <button class="btn btn-ghost btn-sm btn-icon" onclick="InventoryPage.openEditModal(${p.id})">✏️</button>
                 <button class="btn btn-ghost btn-sm btn-icon" style="color:var(--color-danger);" onclick="InventoryPage.confirmDelete(${p.id}, '${p.name.replace(/'/g, "\\'")}')">🗑️</button>
@@ -199,7 +200,7 @@ window.InventoryPage = {
 
   async openAddModal() {
     const categories = await window.api.master.getCategories();
-    const brands = await window.api.master.getBrands();
+    const brands = await window.api.master.getBrands('Clothes');
     const fragranceTypes = await this.getFragranceTypes();
 
     modal.show({
@@ -218,6 +219,26 @@ window.InventoryPage = {
                 <option value="Clothes">Clothes</option>
                 <option value="Hosiery">Hosiery</option>
                 <option value="Perfume">Perfume</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Perfume Specific Attributes (Above Brand / Label) -->
+          <div id="perfume-attr-group" class="form-row" style="margin-top: var(--space-3); display:none; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+            <div class="form-group">
+              <label class="form-label">Fragrance Type</label>
+              <div id="prod-fragrance-wrapper" style="position:relative; width:100%;">
+                <select class="form-select" id="prod-fragrance" onchange="InventoryPage.onFragranceTypeChange(this.value, 'prod')" style="width:100%;">
+                  ${this.getFragranceTypeOptionsHTML(fragranceTypes)}
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Target Gender</label>
+              <select class="form-select" id="prod-gender">
+              <option value="Men">Men</option>
+              <option value="Women">Women</option>
+                <option value="Unisex">Unisex</option>
               </select>
             </div>
           </div>
@@ -247,51 +268,21 @@ window.InventoryPage = {
             <div class="form-group" id="group-size">
               <label class="form-label" id="prod-size-label">Size / Measurement</label>
               <div id="prod-size-layout" style="display:grid; grid-template-columns: 85px 1fr; gap: var(--space-2);">
-                <input type="text" class="form-input" id="prod-size-val" placeholder="e.g. 2.5" style="text-align:center;">
+                <input type="number" step="any" min="0" class="form-input" id="prod-size-val" placeholder="e.g. 2.5" style="text-align:center;">
                 <div id="prod-size-unit-wrapper" style="position:relative; width:100%;">
                   <select class="form-select" id="prod-size-unit" onchange="InventoryPage.onSizeUnitChange(this.value, 'prod')" style="width:100%;">
                     ${this.getSizeOptionsHTML('Clothes')}
                   </select>
                 </div>
               </div>
-              <div id="prod-garment-size-wrapper" style="display:none; margin-top: var(--space-2);">
-                <label class="form-label" style="font-size: var(--text-xs); margin-bottom: 4px;">Garment Size *</label>
-                <select class="form-select" id="prod-garment-size">
-                  ${this.getGarmentSizesHTML()}
-                </select>
-              </div>
             </div>
           </div>
 
           <!-- Clothes Specific Attributes -->
-          <div id="clothes-attr-group" class="form-row" style="margin-top: var(--space-3); display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
-            <div class="form-group">
-              <label class="form-label">Color / Shade</label>
-              <input type="text" class="form-input" id="prod-color" placeholder="e.g. Black / Navy Blue">
-            </div>
+          <div id="clothes-attr-group" class="form-row" style="margin-top: var(--space-3); display:grid; grid-template-columns: 1fr; gap: var(--space-4);">
             <div class="form-group">
               <label class="form-label">Fabric / Material</label>
               <input type="text" class="form-input" id="prod-fabric" placeholder="e.g. Lawn / Chiffon / Cotton">
-            </div>
-          </div>
-
-          <!-- Perfume Specific Attributes -->
-          <div id="perfume-attr-group" class="form-row" style="margin-top: var(--space-3); display:none; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
-            <div class="form-group">
-              <label class="form-label">Fragrance Type</label>
-              <div id="prod-fragrance-wrapper" style="position:relative; width:100%;">
-                <select class="form-select" id="prod-fragrance" onchange="InventoryPage.onFragranceTypeChange(this.value, 'prod')" style="width:100%;">
-                  ${this.getFragranceTypeOptionsHTML(fragranceTypes)}
-                </select>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Target Gender</label>
-              <select class="form-select" id="prod-gender">
-                <option value="Unisex">Unisex</option>
-                <option value="Men">Men</option>
-                <option value="Women">Women</option>
-              </select>
             </div>
           </div>
 
@@ -359,6 +350,23 @@ window.InventoryPage = {
     }
     if (category === 'Hosiery') {
       return [
+        'S',
+        'M',
+        'L',
+        'XL',
+        'XXL',
+        '36',
+        '38',
+        '40',
+        '42',
+        '44',
+        '1-2 Years',
+        '3-4 Years',
+        '22',
+        '24',
+        '26',
+        'Free Size',
+        'Standard Size',
         'Piece (Pc)',
         'Pack of 3',
         'Pack of 6',
@@ -426,7 +434,7 @@ window.InventoryPage = {
     let defaultVal = selectedVal;
     if (!defaultVal) {
       if (category === 'Perfume') defaultVal = 'ml (ملی لیٹر)';
-      else if (category === 'Hosiery') defaultVal = 'Piece (Pc)';
+      else if (category === 'Hosiery') defaultVal = 'L';
       else defaultVal = 'Meter (میٹر)';
     }
     
@@ -499,23 +507,32 @@ window.InventoryPage = {
       console.error(e);
     }
     return [
-      { id: 1, name: 'Eau de Parfum (EDP)' },
-      { id: 2, name: 'Eau de Toilette (EDT)' },
-      { id: 3, name: 'Pure Oud / Attar' },
-      { id: 4, name: 'Body Spray' },
-      { id: 5, name: 'Extrait de Parfum' },
-      { id: 6, name: 'Cologne (EDC)' },
-      { id: 7, name: 'Concentrated Perfume Oil (CPO)' }
+      { id: 1, name: 'Body spray' },
+      { id: 2, name: 'Attar' },
+      { id: 3, name: 'Normal Spray' }
     ];
   },
 
   getFragranceTypeOptionsHTML(types, selectedVal = '') {
-    const list = types.map(t => typeof t === 'string' ? t : t.name);
-    if (selectedVal && !list.includes(selectedVal) && selectedVal !== 'ADD_NEW_FRAGRANCE_TYPE') {
-      list.push(selectedVal);
+    const rawList = (types || []).map(t => typeof t === 'string' ? t : t.name);
+    const uniqueMap = new Map();
+    for (const item of rawList) {
+      if (item && item.trim()) {
+        const key = item.trim().toLowerCase();
+        if (!uniqueMap.has(key)) {
+          uniqueMap.set(key, item.trim());
+        }
+      }
     }
-    const defaultVal = selectedVal || (list.length > 0 ? list[0] : 'Eau de Parfum (EDP)');
-    let html = list.map(t => `<option value="${t}" ${t === defaultVal ? 'selected' : ''}>${t}</option>`).join('');
+    if (selectedVal && selectedVal !== 'ADD_NEW_FRAGRANCE_TYPE') {
+      const key = selectedVal.trim().toLowerCase();
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, selectedVal.trim());
+      }
+    }
+    const list = Array.from(uniqueMap.values());
+    const defaultVal = selectedVal ? selectedVal.trim() : (list.length > 0 ? list[0] : 'Body spray');
+    let html = list.map(t => `<option value="${t}" ${t.toLowerCase() === defaultVal.toLowerCase() ? 'selected' : ''}>${t}</option>`).join('');
     html += `<option value="ADD_NEW_FRAGRANCE_TYPE" style="font-weight:bold; color:var(--color-primary);">➕ Add Your Fragrance Type...</option>`;
     return html;
   },
@@ -583,17 +600,19 @@ window.InventoryPage = {
   },
 
   async selectBrand(value, text) {
-    document.getElementById('custom-brand-dropdown').style.display = 'none';
+    const dropdown = document.getElementById('custom-brand-dropdown');
+    if (dropdown) dropdown.style.display = 'none';
     
     if (value === 'ADD_NEW_BRAND') {
       const wrapper = document.getElementById('brand-dropdown-wrapper');
       const display = document.getElementById('custom-brand-display');
       display.style.display = 'none';
       
+      const currentCat = document.getElementById('prod-category')?.value || 'Clothes';
       const inputContainer = document.createElement('div');
       inputContainer.className = 'input-group';
       inputContainer.innerHTML = `
-        <input type="text" class="form-input" id="new-brand-input" placeholder="New brand name" style="flex:1;">
+        <input type="text" class="form-input" id="new-brand-input" placeholder="New ${currentCat} brand name" style="flex:1;">
         <button type="button" class="btn btn-primary" id="new-brand-save">OK</button>
         <button type="button" class="btn btn-secondary" id="new-brand-cancel">X</button>
       `;
@@ -607,9 +626,9 @@ window.InventoryPage = {
           const newBrand = input.value.trim();
           if (newBrand) {
             try {
-              await window.api.master.addBrand(newBrand);
-              toast.success('Brand added successfully!');
-              await InventoryPage.refreshBrandsDropdown(newBrand);
+              await window.api.master.addBrand(newBrand, currentCat);
+              toast.success(`Brand "${newBrand}" added to ${currentCat}!`);
+              await InventoryPage.refreshBrandsDropdown(newBrand, currentCat);
             } catch (err) {
               console.error(err);
               toast.error('Failed to add brand');
@@ -640,20 +659,23 @@ window.InventoryPage = {
       toast.success('Brand "' + name + '" deleted');
       
       const hiddenInput = document.getElementById('prod-brand');
-      if (hiddenInput.value === name) {
+      if (hiddenInput && hiddenInput.value === name) {
         hiddenInput.value = '';
         document.getElementById('custom-brand-text').textContent = '-- Select Brand --';
       }
-      await InventoryPage.refreshBrandsDropdown(hiddenInput.value);
+      const currentCat = document.getElementById('prod-category')?.value || 'Clothes';
+      await InventoryPage.refreshBrandsDropdown(hiddenInput ? hiddenInput.value : '', currentCat);
     } catch (err) {
       console.error(err);
       toast.error('Failed to delete brand');
     }
   },
 
-  async refreshBrandsDropdown(selectedValue) {
-    const brands = await window.api.master.getBrands();
+  async refreshBrandsDropdown(selectedValue, category) {
+    const cat = category || document.getElementById('prod-category')?.value || 'Clothes';
+    const brands = await window.api.master.getBrands(cat);
     const dropdown = document.getElementById('custom-brand-dropdown');
+    if (!dropdown) return;
     dropdown.innerHTML = `
       <div style="padding:0.5rem 0.75rem; cursor:pointer;" onclick="InventoryPage.selectBrand('', '-- Select Brand --')" onmouseover="this.style.background='var(--color-bg-secondary)'" onmouseout="this.style.background=''">-- Select Brand --</div>
       ${brands.map(b => `
@@ -662,15 +684,20 @@ window.InventoryPage = {
           <button type="button" class="btn btn-ghost btn-icon" style="color:var(--color-danger); padding:0.25rem; height:auto; min-height:auto;" onclick="InventoryPage.deleteBrandInline(${b.id}, '${b.name.replace(/'/g, "\\'")}', event)">✖</button>
         </div>
       `).join('')}
-      <div style="padding:0.5rem 0.75rem; cursor:pointer; font-weight:bold; color:var(--color-primary);" onclick="InventoryPage.selectBrand('ADD_NEW_BRAND', '')" onmouseover="this.style.background='var(--color-bg-secondary)'" onmouseout="this.style.background=''">+ Add Your Brand</div>
+      <div style="padding:0.5rem 0.75rem; cursor:pointer; font-weight:bold; color:var(--color-primary);" onclick="InventoryPage.selectBrand('ADD_NEW_BRAND', '')" onmouseover="this.style.background='var(--color-bg-secondary)'" onmouseout="this.style.background=''">+ Add ${cat} Brand</div>
     `;
     if (selectedValue && selectedValue !== 'ADD_NEW_BRAND') {
       document.getElementById('prod-brand').value = selectedValue;
       document.getElementById('custom-brand-text').textContent = selectedValue;
+    } else {
+      document.getElementById('prod-brand').value = '';
+      document.getElementById('custom-brand-text').textContent = '-- Select Brand --';
     }
   },
 
   onModalCategoryChange(cat) {
+    // Automatically filter brands list to only show brands for the selected category
+    this.refreshBrandsDropdown('', cat);
     const nameInput = document.getElementById('prod-name');
     const sizeVal = document.getElementById('prod-size-val');
     const sizeLayout = document.getElementById('prod-size-layout');
@@ -689,8 +716,8 @@ window.InventoryPage = {
     if (cat === 'Hosiery') {
       // Product Name
       if (nameInput) nameInput.placeholder = "e.g., Men's Cotton Banyan / White School Socks / Casual T-Shirt";
-      // Size section: hide numeric value input, show pack unit + garment size
-      if (sizeLabel) sizeLabel.textContent = 'Pack Unit / Garment Size';
+      // Size section: single Garment Size dropdown with 'Add Your Own Size'
+      if (sizeLabel) sizeLabel.textContent = 'Garment Size';
       if (sizeLayout) sizeLayout.style.gridTemplateColumns = '1fr';
       if (sizeVal) sizeVal.style.display = 'none';
       if (wrapper) {
@@ -700,7 +727,7 @@ window.InventoryPage = {
           </select>
         `;
       }
-      if (garmentSizeWrapper) garmentSizeWrapper.style.display = 'block';
+      if (garmentSizeWrapper) garmentSizeWrapper.style.display = 'none';
       // Show clothes attrs with updated placeholder
       if (clothesGroup) clothesGroup.style.display = 'grid';
       if (perfumeGroup) perfumeGroup.style.display = 'none';
@@ -759,11 +786,9 @@ window.InventoryPage = {
     let size = null;
     if (category === 'Hosiery') {
       const sizeUnitSelect = document.getElementById('prod-size-unit');
-      const packUnit = sizeUnitSelect ? (sizeUnitSelect.value !== 'ADD_NEW_SIZE' ? sizeUnitSelect.value : '') : '';
-      const garmentSize = document.getElementById('prod-garment-size')?.value || '';
-      if (packUnit && garmentSize) size = `${packUnit} | ${garmentSize}`;
-      else if (packUnit) size = packUnit;
-      else if (garmentSize) size = garmentSize;
+      const sizeUnitInput = document.getElementById('prod-new-size-input');
+      size = sizeUnitSelect ? (sizeUnitSelect.value !== 'ADD_NEW_SIZE' ? sizeUnitSelect.value : '') : (sizeUnitInput?.value.trim() || '');
+      if (!size) size = 'Standard Size';
     } else {
       const sizeVal = document.getElementById('prod-size-val')?.value.trim() || '';
       const sizeUnitSelect = document.getElementById('prod-size-unit');
@@ -772,7 +797,7 @@ window.InventoryPage = {
       size = sizeVal ? (sizeUnit ? `${sizeVal} ${sizeUnit}` : sizeVal) : (sizeUnit || null);
     }
 
-    const color = document.getElementById('prod-color')?.value.trim() || null;
+    const color = null;
     const fabric = document.getElementById('prod-fabric')?.value.trim() || null;
     let fragrance_type = null;
     if (category === 'Perfume') {
@@ -785,20 +810,19 @@ window.InventoryPage = {
 
     const purchase_price = parseFloat(document.getElementById('prod-cost').value) || 0;
     const sale_price = parseFloat(document.getElementById('prod-price').value) || 0;
-    const quantity = parseInt(document.getElementById('prod-qty').value) || 0;
+    const quantity = parseFloat(document.getElementById('prod-qty').value) || 0;
     const low_stock_threshold = parseInt(document.getElementById('prod-threshold').value) || 5;
     const barcode = document.getElementById('prod-barcode').value.trim();
     const supplier = document.getElementById('prod-supplier').value.trim();
+    const isAttar = String(fragrance_type || '').trim().toLowerCase() === 'attar';
+    const retail_quantity = isAttar ? (parseFloat(document.getElementById('prod-size-val')?.value) || quantity || 1) : 1;
 
     if (!name) return toast.error('Product Name is required');
-    if (category === 'Hosiery' && !document.getElementById('prod-garment-size')?.value) {
-      return toast.error('Garment Size is required for Hosiery products');
-    }
 
     try {
       await window.api.products.add({
         name, category, brand, size, color, fabric, fragrance_type, gender,
-        purchase_price, sale_price, quantity, low_stock_threshold, barcode, supplier
+        purchase_price, sale_price, quantity, inventory_unit: isAttar ? 'ml' : 'pcs', retail_quantity, low_stock_threshold, barcode, supplier
       });
       toast.success('Product added successfully!');
       modal.hide();
@@ -809,7 +833,14 @@ window.InventoryPage = {
     }
   },
 
-  onEditModalCategoryChange(cat) {
+  async onEditModalCategoryChange(cat) {
+    const datalist = document.getElementById('edit-brand-datalist');
+    if (datalist) {
+      try {
+        const brands = await window.api.master.getBrands(cat);
+        datalist.innerHTML = brands.map(b => `<option value="${b.name}">${b.name}</option>`).join('');
+      } catch (e) {}
+    }
     const nameInput = document.getElementById('edit-prod-name');
     const sizeVal = document.getElementById('edit-prod-size-val');
     const sizeLayout = document.getElementById('edit-prod-size-layout');
@@ -825,7 +856,7 @@ window.InventoryPage = {
 
     if (cat === 'Hosiery') {
       if (nameInput) nameInput.placeholder = "e.g., Men's Cotton Banyan / White School Socks / Casual T-Shirt";
-      if (sizeLabel) sizeLabel.textContent = 'Pack Unit / Garment Size';
+      if (sizeLabel) sizeLabel.textContent = 'Garment Size';
       if (sizeLayout) sizeLayout.style.gridTemplateColumns = '1fr';
       if (sizeVal) sizeVal.style.display = 'none';
       if (wrapper) {
@@ -835,7 +866,7 @@ window.InventoryPage = {
           </select>
         `;
       }
-      if (garmentSizeWrapper) garmentSizeWrapper.style.display = 'block';
+      if (garmentSizeWrapper) garmentSizeWrapper.style.display = 'none';
       if (clothesGroup) clothesGroup.style.display = 'grid';
       if (perfumeGroup) perfumeGroup.style.display = 'none';
       if (fabricInput) fabricInput.placeholder = 'e.g., Single Jersey Cotton, Interlock, Fleece, Lycra, Pique';
@@ -886,6 +917,7 @@ window.InventoryPage = {
     const product = await window.api.products.get(id);
     if (!product) return;
     const fragranceTypes = await this.getFragranceTypes();
+    const categoryBrands = await window.api.master.getBrands(product.category || 'Clothes');
 
     const isPerfume = product.category === 'Perfume';
     const isHosiery = product.category === 'Hosiery';
@@ -893,24 +925,9 @@ window.InventoryPage = {
     // Parse size based on category
     let valPart = '';
     let unitPart = product.size || '';
-    let garmentSizePart = '';
 
-    if (isHosiery && product.size) {
-      // Hosiery size format: "Pack of 3 | L" or "Piece (Pc) | 40" or single size "L"
-      if (product.size.includes(' | ')) {
-        const parts = product.size.split(' | ');
-        unitPart = parts[0] || 'Piece (Pc)';
-        garmentSizePart = parts[1] || '';
-      } else {
-        const knownGarmentSizes = ['S', 'M', 'L', 'XL', 'XXL', '36', '38', '40', '42', '44', '1-2 Years', '3-4 Years', '22', '24', '26'];
-        if (knownGarmentSizes.includes(product.size.trim())) {
-          unitPart = 'Piece (Pc)';
-          garmentSizePart = product.size.trim();
-        } else {
-          unitPart = product.size.trim();
-          garmentSizePart = '';
-        }
-      }
+    if (isHosiery) {
+      unitPart = product.size || 'L';
     } else if (product.size) {
       const match = product.size.match(/^([0-9.]+|[SMLXLsmlxl]+)\s*(.*)$/);
       if (match && match[2]) {
@@ -952,43 +969,7 @@ window.InventoryPage = {
             </div>
           </div>
 
-          <div class="form-row" style="margin-top: var(--space-3); display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
-            <div class="form-group">
-              <label class="form-label">Brand / Label</label>
-              <input type="text" class="form-input" id="edit-prod-brand" value="${product.brand || ''}" placeholder="Brand name">
-            </div>
-            <div class="form-group" id="edit-group-size">
-              <label class="form-label" id="edit-size-label">${isHosiery ? 'Pack Unit / Garment Size' : 'Size / Measurement'}</label>
-              <div id="edit-prod-size-layout" style="display:grid; grid-template-columns: ${isHosiery ? '1fr' : '85px 1fr'}; gap: var(--space-2);">
-                <input type="text" class="form-input" id="edit-prod-size-val" value="${valPart || ''}" placeholder="${isPerfume ? '50' : 'e.g. 2.5'}" style="text-align:center; ${isHosiery ? 'display:none;' : ''}">
-                <div id="edit-size-unit-wrapper" style="position:relative; width:100%;">
-                  <select class="form-select" id="edit-prod-size-unit" onchange="InventoryPage.onSizeUnitChange(this.value, 'edit')" style="width:100%;">
-                    ${this.getSizeOptionsHTML(product.category, isHosiery ? unitPart : unitPart)}
-                  </select>
-                </div>
-              </div>
-              <div id="edit-garment-size-wrapper" style="${isHosiery ? '' : 'display:none;'} margin-top: var(--space-2);">
-                <label class="form-label" style="font-size: var(--text-xs); margin-bottom: 4px;">Garment Size *</label>
-                <select class="form-select" id="edit-garment-size">
-                  ${this.getGarmentSizesHTML(garmentSizePart)}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <!-- Clothes / Hosiery Specific Attributes -->
-          <div id="edit-clothes-attr-group" class="form-row" style="margin-top: var(--space-3); display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); ${isPerfume ? 'display:none;' : ''}">
-            <div class="form-group">
-              <label class="form-label">Color / Shade</label>
-              <input type="text" class="form-input" id="edit-prod-color" value="${product.color || ''}" placeholder="e.g. Black / Navy Blue">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Fabric / Material</label>
-              <input type="text" class="form-input" id="edit-prod-fabric" value="${product.fabric || ''}" placeholder="${fabricPlaceholder}">
-            </div>
-          </div>
-
-          <!-- Perfume Specific Attributes -->
+          <!-- Perfume Specific Attributes (Above Brand / Label) -->
           <div id="edit-perfume-attr-group" class="form-row" style="margin-top: var(--space-3); ${isPerfume ? 'display:grid;' : 'display:none;'} grid-template-columns: 1fr 1fr; gap: var(--space-4);">
             <div class="form-group">
               <label class="form-label">Fragrance Type</label>
@@ -1001,10 +982,39 @@ window.InventoryPage = {
             <div class="form-group">
               <label class="form-label">Target Gender</label>
               <select class="form-select" id="edit-prod-gender">
-                <option value="Unisex" ${product.gender === 'Unisex' ? 'selected' : ''}>Unisex</option>
+                <option value="Unisex" ${(product.gender || 'Unisex') === 'Unisex' ? 'selected' : ''}>Unisex</option>
                 <option value="Men" ${product.gender === 'Men' ? 'selected' : ''}>Men</option>
                 <option value="Women" ${product.gender === 'Women' ? 'selected' : ''}>Women</option>
               </select>
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-top: var(--space-3); display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+            <div class="form-group">
+              <label class="form-label">Brand / Label</label>
+              <input type="text" class="form-input" id="edit-prod-brand" list="edit-brand-datalist" value="${product.brand || ''}" placeholder="Select or type brand name">
+              <datalist id="edit-brand-datalist">
+                ${categoryBrands.map(b => `<option value="${b.name}">${b.name}</option>`).join('')}
+              </datalist>
+            </div>
+            <div class="form-group" id="edit-group-size">
+              <label class="form-label" id="edit-size-label">${isHosiery ? 'Garment Size' : 'Size / Measurement'}</label>
+              <div id="edit-prod-size-layout" style="display:grid; grid-template-columns: ${isHosiery ? '1fr' : '85px 1fr'}; gap: var(--space-2);">
+                <input type="number" step="any" min="0" class="form-input" id="edit-prod-size-val" value="${valPart || ''}" placeholder="${isPerfume ? '50' : 'e.g. 2.5'}" style="text-align:center; ${isHosiery ? 'display:none;' : ''}">
+                <div id="edit-size-unit-wrapper" style="position:relative; width:100%;">
+                  <select class="form-select" id="edit-prod-size-unit" onchange="InventoryPage.onSizeUnitChange(this.value, 'edit')" style="width:100%;">
+                    ${this.getSizeOptionsHTML(product.category, unitPart)}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Clothes / Hosiery Specific Attributes -->
+          <div id="edit-clothes-attr-group" class="form-row" style="margin-top: var(--space-3); display:grid; grid-template-columns: 1fr; gap: var(--space-4); ${isPerfume ? 'display:none;' : ''}">
+            <div class="form-group">
+              <label class="form-label">Fabric / Material</label>
+              <input type="text" class="form-input" id="edit-prod-fabric" value="${product.fabric || ''}" placeholder="${fabricPlaceholder}">
             </div>
           </div>
 
@@ -1060,11 +1070,9 @@ window.InventoryPage = {
     let size = null;
     if (category === 'Hosiery') {
       const sizeUnitSelect = document.getElementById('edit-prod-size-unit');
-      const packUnit = sizeUnitSelect ? (sizeUnitSelect.value !== 'ADD_NEW_SIZE' ? sizeUnitSelect.value : '') : '';
-      const garmentSize = document.getElementById('edit-garment-size')?.value || '';
-      if (packUnit && garmentSize) size = `${packUnit} | ${garmentSize}`;
-      else if (packUnit) size = packUnit;
-      else if (garmentSize) size = garmentSize;
+      const sizeUnitInput = document.getElementById('edit-new-size-input');
+      size = sizeUnitSelect ? (sizeUnitSelect.value !== 'ADD_NEW_SIZE' ? sizeUnitSelect.value : '') : (sizeUnitInput?.value.trim() || '');
+      if (!size) size = 'Standard Size';
     } else {
       const sizeVal = document.getElementById('edit-prod-size-val')?.value.trim() || '';
       const sizeUnitSelect = document.getElementById('edit-prod-size-unit');
@@ -1073,7 +1081,7 @@ window.InventoryPage = {
       size = sizeVal ? (sizeUnit ? `${sizeVal} ${sizeUnit}` : sizeVal) : (sizeUnit || null);
     }
 
-    const color = document.getElementById('edit-prod-color')?.value.trim() || null;
+    const color = null;
     const fabric = document.getElementById('edit-prod-fabric')?.value.trim() || null;
     let fragrance_type = null;
     if (category === 'Perfume') {
@@ -1091,9 +1099,6 @@ window.InventoryPage = {
     const supplier = document.getElementById('edit-prod-supplier')?.value.trim() || null;
 
     if (!name) return toast.error('Product Name is required');
-    if (category === 'Hosiery' && !document.getElementById('edit-garment-size')?.value) {
-      return toast.error('Garment Size is required for Hosiery products');
-    }
 
     try {
       await window.api.products.update(id, { 
@@ -1113,14 +1118,15 @@ window.InventoryPage = {
     const product = await window.api.products.get(id);
     if (!product) return;
 
+    const unit = formatters.getProductUnit(product);
     modal.show({
       title: `Stock In — ${product.name}`,
       bodyHTML: `
         <div style="font-size:var(--text-sm); margin-bottom: var(--space-3); color: var(--color-text-secondary);">
-          Current Stock: <strong style="color:var(--color-accent);">${product.quantity} pcs</strong>
+          Current Stock: <strong style="color:var(--color-accent);">${product.quantity} ${unit}</strong>
         </div>
         <div class="form-group">
-          <label class="form-label">Additional Quantity to Add *</label>
+          <label class="form-label">Additional Quantity to Add (${unit}) *</label>
           <input type="number" class="form-input" id="stockin-qty" value="10" min="1" required>
         </div>
         <div class="form-group" style="margin-top: var(--space-3);">
@@ -1136,18 +1142,60 @@ window.InventoryPage = {
   },
 
   async saveStockIn(id) {
-    const qty = parseInt(document.getElementById('stockin-qty').value) || 0;
+    const qty = parseFloat(document.getElementById('stockin-qty').value) || 0;
     const supplier = document.getElementById('stockin-supplier').value.trim();
     if (qty <= 0) return toast.error('Quantity must be greater than 0');
 
     try {
+      const product = await window.api.products.get(id);
+      const unit = formatters.getProductUnit(product);
       await window.api.products.stockIn(id, qty, supplier, this.localDate());
-      toast.success(`Added ${qty} pieces to stock!`);
+      toast.success(`Added ${qty} ${unit} to stock!`);
       modal.hide();
       this.loadProducts();
     } catch (err) {
       toast.error('Failed to add stock');
     }
+  },
+
+  async openCustomSaleModal(id) {
+    const product = await window.api.products.get(id);
+    if (!product || String(product.fragrance_type || '').trim().toLowerCase() !== 'attar') return;
+    const reference = Number(product.retail_quantity) || 1;
+    const rate = Number(product.sale_price) / reference;
+    modal.show({
+      title: `Custom Attar Sale — ${product.name}`,
+      bodyHTML: `
+        <p>Available: <strong>${product.quantity} ml</strong> &nbsp;|&nbsp; Retail: Rs. ${product.sale_price} per ${reference} ml</p>
+        <div class="form-row" style="display:grid;grid-template-columns:1fr 120px;gap:var(--space-3)">
+          <div class="form-group"><label class="form-label">Quantity to sell</label><input type="number" step="any" min="0.001" max="${product.quantity}" class="form-input" id="attar-sale-qty" value="1" oninput="InventoryPage.updateAttarTotal(${rate})"></div>
+          <div class="form-group"><label class="form-label">Unit</label><select class="form-select" id="attar-sale-unit"><option value="ml">ml</option><option value="tola">tola</option></select></div>
+        </div>
+        <div class="form-group"><label class="form-label">Selling Price (Rs.)</label><input type="number" step="0.01" class="form-input" id="attar-sale-total" value="${rate.toFixed(2)}"><small class="form-helper">Calculated from retail price; can be adjusted.</small></div>
+        <div class="form-group"><label class="form-label">Customer</label><input class="form-input" id="attar-sale-customer" placeholder="Walk-in Customer"></div>
+      `,
+      footerHTML: `<button class="btn btn-secondary" onclick="modal.hide()">Cancel</button><button class="btn btn-primary" onclick="InventoryPage.saveAttarSale(${id})">Complete Sale</button>`
+    });
+  },
+
+  updateAttarTotal(rate) {
+    const qty = Number(document.getElementById('attar-sale-qty')?.value) || 0;
+    document.getElementById('attar-sale-total').value = (qty * rate).toFixed(2);
+  },
+
+  async saveAttarSale(id) {
+    const product = await window.api.products.get(id);
+    const qty = Number(document.getElementById('attar-sale-qty')?.value);
+    const total = Number(document.getElementById('attar-sale-total')?.value);
+    const unit = document.getElementById('attar-sale-unit')?.value || 'ml';
+    if (!product || !Number.isFinite(qty) || qty <= 0 || qty > Number(product.quantity)) return toast.error(`Enter up to ${product?.quantity || 0} ml`);
+    if (!Number.isFinite(total) || total < 0) return toast.error('Enter a valid selling price');
+    try {
+      const sale = await window.api.sales.create({ customer_name: document.getElementById('attar-sale-customer')?.value.trim() || 'Walk-in Customer', payment_method: 'Cash', discount_type: 'flat', discount_value: 0, tax_amount: 0 }, [{ product_id: id, quantity: qty, quantity_unit: unit, price_at_sale: total / qty }]);
+      toast.success(`Sale ${sale.invoice_no} saved. Remaining: ${Number(product.quantity - qty).toFixed(2)} ml`);
+      modal.hide();
+      this.loadProducts();
+    } catch (err) { toast.error(err.message || 'Could not save Attar sale'); }
   },
 
   confirmDelete(id, name) {
@@ -1183,15 +1231,16 @@ window.InventoryPage = {
       }
     } catch (e) {}
 
+    const unit = formatters.getProductUnit(product);
     modal.show({
       title: `\u21a9 Return to Supplier \u2014 ${product.name}`,
       bodyHTML: `
         <div style="font-size:var(--text-sm); margin-bottom: var(--space-3); color: var(--color-text-secondary);">
-          Current Stock: <strong style="color:var(--color-accent);">${product.quantity} pcs</strong>
+          Current Stock: <strong style="color:var(--color-accent);">${product.quantity} ${unit}</strong>
           &nbsp;|&nbsp; Purchase Price: <strong>${product.purchase_price || 0}</strong> per unit
         </div>
         <div class="form-group">
-          <label class="form-label">Quantity to Return *</label>
+          <label class="form-label">Quantity to Return (${unit}) *</label>
           <input type="number" class="form-input" id="pr-qty" value="1" min="1" max="${product.quantity}" required>
         </div>
         <div class="form-group" style="margin-top: var(--space-3);">
@@ -1252,8 +1301,10 @@ window.InventoryPage = {
     if (!reason) return toast.error('Please select a reason for return');
 
     try {
+      const product = await window.api.products.get(id);
+      const unit = formatters.getProductUnit(product);
       const result = await window.api.purchaseReturns.process(id, qty, supplier, reason, notes || null);
-      toast.success(`Returned ${qty} pcs of "${result.product_name}" to ${supplier}. Stock updated.`);
+      toast.success(`Returned ${qty} ${unit} of "${result.product_name}" to ${supplier}. Stock updated.`);
       modal.hide();
       this.loadProducts();
     } catch (err) {

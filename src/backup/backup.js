@@ -371,11 +371,11 @@ async function exportAllToExcel(db, filePath) {
 
   // 12. Brands Sheet
   const brandsSheet = workbook.addWorksheet('Brands');
-  applyHeader(brandsSheet, ['ID', 'Brand Name', 'Created Date']);
+  applyHeader(brandsSheet, ['ID', 'Brand Name', 'Category', 'Created Date']);
   try {
     const bData = db.prepare('SELECT * FROM brands ORDER BY id ASC').all();
     for (const b of bData) {
-      brandsSheet.addRow([b.id, b.name, b.created_at]);
+      brandsSheet.addRow([b.id, b.name, b.category || 'Clothes', b.created_at]);
     }
   } catch (e) {}
   brandsSheet.columns.forEach(col => { col.width = 16; });

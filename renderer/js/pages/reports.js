@@ -157,8 +157,8 @@ window.ReportsPage = {
                 ` : data.topProducts.map(p => `
                   <tr>
                     <td style="font-weight:600;">${p.product_name}</td>
-                    <td>${p.product_size || '-'} ${p.product_color ? `(${p.product_color})` : ''}</td>
-                    <td><span class="badge badge-gold">${p.total_qty} pcs</span></td>
+                    <td>${p.product_size || '-'}</td>
+                    <td><span class="badge badge-gold">${p.total_qty} ${formatters.getProductUnit(p)}</span></td>
                     <td style="font-weight:700;">${formatters.currency(p.total_revenue, curr)}</td>
                   </tr>
                 `).join('')}
@@ -238,7 +238,7 @@ window.ReportsPage = {
                   <tr>
                     <th>Category</th>
                     <th>Total Invoices</th>
-                    <th>Pieces Sold</th>
+                    <th>Qty Sold</th>
                     <th>Total Revenue</th>
                     <th>Net Profit</th>
                   </tr>
@@ -250,7 +250,7 @@ window.ReportsPage = {
                     <tr>
                       <td><span class="badge ${c.category === 'Clothes' ? 'badge-clothes' : (c.category === 'Hosiery' ? 'badge-hosiery' : 'badge-perfume')}">${c.category}</span></td>
                       <td>${c.total_sales}</td>
-                      <td>${c.total_qty} pcs</td>
+                      <td>${c.total_qty} ${c.category === 'Clothes' ? 'Meter' : 'Items'}</td>
                       <td style="font-weight:700;">${formatters.currency(c.total_revenue, curr)}</td>
                       <td style="font-weight:700; color:var(--color-success);">${formatters.currency(c.total_profit, curr)}</td>
                     </tr>
@@ -286,7 +286,7 @@ window.ReportsPage = {
                     ` : data.bySize.map(s => `
                       <tr>
                         <td style="font-weight:600;">${s.variant}</td>
-                        <td><span class="badge badge-gold">${s.total_qty} pcs</span></td>
+                        <td><span class="badge badge-gold">${s.total_qty} ${formatters.getProductUnit(s)}</span></td>
                         <td style="font-weight:700;">${formatters.currency(s.total_revenue, curr)}</td>
                       </tr>
                     `).join('')}
@@ -312,7 +312,7 @@ window.ReportsPage = {
                     ` : data.byColor.map(c => `
                       <tr>
                         <td style="font-weight:600;">${c.variant}</td>
-                        <td><span class="badge badge-gold">${c.total_qty} pcs</span></td>
+                        <td><span class="badge badge-gold">${c.total_qty} ${formatters.getProductUnit(c)}</span></td>
                         <td style="font-weight:700;">${formatters.currency(c.total_revenue, curr)}</td>
                       </tr>
                     `).join('')}
