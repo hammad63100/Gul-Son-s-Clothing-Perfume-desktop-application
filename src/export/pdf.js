@@ -99,11 +99,14 @@ async function generateInvoicePDF(saleData, settings = {}, filePath) {
 
         xPos = 45;
         const variantStr = item.product_size || '-';
+        const qtyNum = Number(item.quantity || 1);
+        const qtyFormatted = Number.isInteger(qtyNum) ? qtyNum.toString() : parseFloat(qtyNum.toFixed(2)).toString();
+        const qtyUnitStr = item.quantity_unit && !['pcs', 'Items', 'items'].includes(item.quantity_unit) ? ` ${item.quantity_unit}` : '';
         const rowData = [
           String(index + 1),
           String(item.product_name || 'Unknown'),
           String(variantStr),
-          String(item.quantity || 1),
+          `${qtyFormatted}${qtyUnitStr}`,
           `${currency} ${(item.price_at_sale || 0).toLocaleString()}`,
           `${currency} ${(item.line_total || 0).toLocaleString()}`,
         ];

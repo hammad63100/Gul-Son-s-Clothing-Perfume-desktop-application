@@ -266,14 +266,11 @@ window.InventoryPage = {
               </div>
             </div>
             <div class="form-group" id="group-size">
-              <label class="form-label" id="prod-size-label">Size / Measurement</label>
-              <div id="prod-size-layout" style="display:grid; grid-template-columns: 85px 1fr; gap: var(--space-2);">
-                <input type="number" step="any" min="0" class="form-input" id="prod-size-val" placeholder="e.g. 2.5" style="text-align:center;">
-                <div id="prod-size-unit-wrapper" style="position:relative; width:100%;">
-                  <select class="form-select" id="prod-size-unit" onchange="InventoryPage.onSizeUnitChange(this.value, 'prod')" style="width:100%;">
-                    ${this.getSizeOptionsHTML('Clothes')}
-                  </select>
-                </div>
+              <label class="form-label" id="prod-size-label">Measurement / Size</label>
+              <div id="prod-size-unit-wrapper" style="position:relative; width:100%;">
+                <select class="form-select" id="prod-size-unit" onchange="InventoryPage.onSizeUnitChange(this.value, 'prod')" style="width:100%;">
+                  ${this.getSizeOptionsHTML('Clothes')}
+                </select>
               </div>
             </div>
           </div>
@@ -300,7 +297,7 @@ window.InventoryPage = {
           <div class="form-row" style="margin-top: var(--space-3); display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
             <div class="form-group">
               <label class="form-label" id="prod-qty-label">Initial Stock Qty *</label>
-              <input type="number" class="form-input" id="prod-qty" value="10" min="0" required>
+              <input type="number" step="any" class="form-input" id="prod-qty" value="10" min="0" required>
               <small class="form-helper" id="prod-qty-helper" style="display:none; color:var(--color-text-secondary); font-size:var(--text-xs); margin-top:2px;"></small>
             </div>
             <div class="form-group">
@@ -699,27 +696,18 @@ window.InventoryPage = {
     // Automatically filter brands list to only show brands for the selected category
     this.refreshBrandsDropdown('', cat);
     const nameInput = document.getElementById('prod-name');
-    const sizeVal = document.getElementById('prod-size-val');
-    const sizeLayout = document.getElementById('prod-size-layout');
     const sizeLabel = document.getElementById('prod-size-label');
     const wrapper = document.getElementById('prod-size-unit-wrapper');
-    const garmentSizeWrapper = document.getElementById('prod-garment-size-wrapper');
     const clothesGroup = document.getElementById('clothes-attr-group');
     const perfumeGroup = document.getElementById('perfume-attr-group');
     const fabricInput = document.getElementById('prod-fabric');
     const supplierInput = document.getElementById('prod-supplier');
-    const qtyLabel = document.getElementById('prod-qty-label');
     const qtyHelper = document.getElementById('prod-qty-helper');
-    const thresholdLabel = document.getElementById('prod-threshold-label');
     const thresholdHelper = document.getElementById('prod-threshold-helper');
 
     if (cat === 'Hosiery') {
-      // Product Name
       if (nameInput) nameInput.placeholder = "e.g., Men's Cotton Banyan / White School Socks / Casual T-Shirt";
-      // Size section: single Garment Size dropdown with 'Add Your Own Size'
       if (sizeLabel) sizeLabel.textContent = 'Garment Size';
-      if (sizeLayout) sizeLayout.style.gridTemplateColumns = '1fr';
-      if (sizeVal) sizeVal.style.display = 'none';
       if (wrapper) {
         wrapper.innerHTML = `
           <select class="form-select" id="prod-size-unit" onchange="InventoryPage.onSizeUnitChange(this.value, 'prod')" style="width:100%;">
@@ -727,20 +715,15 @@ window.InventoryPage = {
           </select>
         `;
       }
-      if (garmentSizeWrapper) garmentSizeWrapper.style.display = 'none';
-      // Show clothes attrs with updated placeholder
       if (clothesGroup) clothesGroup.style.display = 'grid';
       if (perfumeGroup) perfumeGroup.style.display = 'none';
       if (fabricInput) fabricInput.placeholder = 'e.g., Single Jersey Cotton, Interlock, Fleece, Lycra, Pique';
       if (supplierInput) supplierInput.placeholder = 'e.g., Lucky Textile / Sahar Hosiery';
-      // Stock labels
       if (qtyHelper) { qtyHelper.textContent = 'Total Pieces / Packs'; qtyHelper.style.display = 'block'; }
       if (thresholdHelper) { thresholdHelper.textContent = 'Pieces / Packs count'; thresholdHelper.style.display = 'block'; }
     } else if (cat === 'Perfume') {
       if (nameInput) nameInput.placeholder = 'e.g., Oud Royal 100ml / Lattafa Raghba';
-      if (sizeLabel) sizeLabel.textContent = 'Size / Measurement';
-      if (sizeLayout) sizeLayout.style.gridTemplateColumns = '85px 1fr';
-      if (sizeVal) { sizeVal.style.display = ''; sizeVal.placeholder = '50'; }
+      if (sizeLabel) sizeLabel.textContent = 'Measurement / Size';
       if (wrapper) {
         wrapper.innerHTML = `
           <select class="form-select" id="prod-size-unit" onchange="InventoryPage.onSizeUnitChange(this.value, 'prod')" style="width:100%;">
@@ -748,7 +731,6 @@ window.InventoryPage = {
           </select>
         `;
       }
-      if (garmentSizeWrapper) garmentSizeWrapper.style.display = 'none';
       if (clothesGroup) clothesGroup.style.display = 'none';
       if (perfumeGroup) perfumeGroup.style.display = 'grid';
       if (supplierInput) supplierInput.placeholder = 'e.g., Al-Karam / Dior Wholesale';
@@ -757,9 +739,7 @@ window.InventoryPage = {
     } else {
       // Clothes (default)
       if (nameInput) nameInput.placeholder = 'e.g., Cotton Embroidered Kurti / Lawn Unstitched 3pc';
-      if (sizeLabel) sizeLabel.textContent = 'Size / Measurement';
-      if (sizeLayout) sizeLayout.style.gridTemplateColumns = '85px 1fr';
-      if (sizeVal) { sizeVal.style.display = ''; sizeVal.placeholder = 'e.g. 2.5'; }
+      if (sizeLabel) sizeLabel.textContent = 'Measurement / Size';
       if (wrapper) {
         wrapper.innerHTML = `
           <select class="form-select" id="prod-size-unit" onchange="InventoryPage.onSizeUnitChange(this.value, 'prod')" style="width:100%;">
@@ -767,7 +747,6 @@ window.InventoryPage = {
           </select>
         `;
       }
-      if (garmentSizeWrapper) garmentSizeWrapper.style.display = 'none';
       if (clothesGroup) clothesGroup.style.display = 'grid';
       if (perfumeGroup) perfumeGroup.style.display = 'none';
       if (fabricInput) fabricInput.placeholder = 'e.g., Lawn / Chiffon / Cotton';
@@ -784,18 +763,10 @@ window.InventoryPage = {
 
     // Compose size based on category
     let size = null;
-    if (category === 'Hosiery') {
-      const sizeUnitSelect = document.getElementById('prod-size-unit');
-      const sizeUnitInput = document.getElementById('prod-new-size-input');
-      size = sizeUnitSelect ? (sizeUnitSelect.value !== 'ADD_NEW_SIZE' ? sizeUnitSelect.value : '') : (sizeUnitInput?.value.trim() || '');
-      if (!size) size = 'Standard Size';
-    } else {
-      const sizeVal = document.getElementById('prod-size-val')?.value.trim() || '';
-      const sizeUnitSelect = document.getElementById('prod-size-unit');
-      const sizeUnitInput = document.getElementById('prod-new-size-input');
-      const sizeUnit = sizeUnitSelect ? (sizeUnitSelect.value !== 'ADD_NEW_SIZE' ? sizeUnitSelect.value : '') : (sizeUnitInput?.value.trim() || '');
-      size = sizeVal ? (sizeUnit ? `${sizeVal} ${sizeUnit}` : sizeVal) : (sizeUnit || null);
-    }
+    const sizeUnitSelect = document.getElementById('prod-size-unit');
+    const sizeUnitInput = document.getElementById('prod-new-size-input');
+    size = sizeUnitSelect ? (sizeUnitSelect.value !== 'ADD_NEW_SIZE' ? sizeUnitSelect.value : '') : (sizeUnitInput?.value.trim() || '');
+    if (!size && category === 'Hosiery') size = 'Standard Size';
 
     const color = null;
     const fabric = document.getElementById('prod-fabric')?.value.trim() || null;
@@ -815,7 +786,7 @@ window.InventoryPage = {
     const barcode = document.getElementById('prod-barcode').value.trim();
     const supplier = document.getElementById('prod-supplier').value.trim();
     const isAttar = String(fragrance_type || '').trim().toLowerCase() === 'attar';
-    const retail_quantity = isAttar ? (parseFloat(document.getElementById('prod-size-val')?.value) || quantity || 1) : 1;
+    const retail_quantity = 1;
 
     if (!name) return toast.error('Product Name is required');
 
@@ -842,11 +813,8 @@ window.InventoryPage = {
       } catch (e) {}
     }
     const nameInput = document.getElementById('edit-prod-name');
-    const sizeVal = document.getElementById('edit-prod-size-val');
-    const sizeLayout = document.getElementById('edit-prod-size-layout');
     const sizeLabel = document.getElementById('edit-size-label');
     const wrapper = document.getElementById('edit-size-unit-wrapper');
-    const garmentSizeWrapper = document.getElementById('edit-garment-size-wrapper');
     const clothesGroup = document.getElementById('edit-clothes-attr-group');
     const perfumeGroup = document.getElementById('edit-perfume-attr-group');
     const fabricInput = document.getElementById('edit-prod-fabric');
@@ -857,8 +825,6 @@ window.InventoryPage = {
     if (cat === 'Hosiery') {
       if (nameInput) nameInput.placeholder = "e.g., Men's Cotton Banyan / White School Socks / Casual T-Shirt";
       if (sizeLabel) sizeLabel.textContent = 'Garment Size';
-      if (sizeLayout) sizeLayout.style.gridTemplateColumns = '1fr';
-      if (sizeVal) sizeVal.style.display = 'none';
       if (wrapper) {
         wrapper.innerHTML = `
           <select class="form-select" id="edit-prod-size-unit" onchange="InventoryPage.onSizeUnitChange(this.value, 'edit')" style="width:100%;">
@@ -866,7 +832,6 @@ window.InventoryPage = {
           </select>
         `;
       }
-      if (garmentSizeWrapper) garmentSizeWrapper.style.display = 'none';
       if (clothesGroup) clothesGroup.style.display = 'grid';
       if (perfumeGroup) perfumeGroup.style.display = 'none';
       if (fabricInput) fabricInput.placeholder = 'e.g., Single Jersey Cotton, Interlock, Fleece, Lycra, Pique';
@@ -875,9 +840,7 @@ window.InventoryPage = {
       if (thresholdHelper) { thresholdHelper.textContent = 'Pieces / Packs count'; thresholdHelper.style.display = 'block'; }
     } else if (cat === 'Perfume') {
       if (nameInput) nameInput.placeholder = 'e.g., Oud Royal 100ml / Lattafa Raghba';
-      if (sizeLabel) sizeLabel.textContent = 'Size / Measurement';
-      if (sizeLayout) sizeLayout.style.gridTemplateColumns = '85px 1fr';
-      if (sizeVal) { sizeVal.style.display = ''; sizeVal.placeholder = '50'; }
+      if (sizeLabel) sizeLabel.textContent = 'Measurement / Size';
       if (wrapper) {
         wrapper.innerHTML = `
           <select class="form-select" id="edit-prod-size-unit" onchange="InventoryPage.onSizeUnitChange(this.value, 'edit')" style="width:100%;">
@@ -885,7 +848,6 @@ window.InventoryPage = {
           </select>
         `;
       }
-      if (garmentSizeWrapper) garmentSizeWrapper.style.display = 'none';
       if (clothesGroup) clothesGroup.style.display = 'none';
       if (perfumeGroup) perfumeGroup.style.display = 'grid';
       if (supplierInput) supplierInput.placeholder = 'e.g., Al-Karam / Dior Wholesale';
@@ -893,9 +855,7 @@ window.InventoryPage = {
       if (thresholdHelper) thresholdHelper.style.display = 'none';
     } else {
       if (nameInput) nameInput.placeholder = 'e.g., Cotton Embroidered Kurti / Lawn Unstitched 3pc';
-      if (sizeLabel) sizeLabel.textContent = 'Size / Measurement';
-      if (sizeLayout) sizeLayout.style.gridTemplateColumns = '85px 1fr';
-      if (sizeVal) { sizeVal.style.display = ''; sizeVal.placeholder = 'e.g. 2.5'; }
+      if (sizeLabel) sizeLabel.textContent = 'Measurement / Size';
       if (wrapper) {
         wrapper.innerHTML = `
           <select class="form-select" id="edit-prod-size-unit" onchange="InventoryPage.onSizeUnitChange(this.value, 'edit')" style="width:100%;">
@@ -903,7 +863,6 @@ window.InventoryPage = {
           </select>
         `;
       }
-      if (garmentSizeWrapper) garmentSizeWrapper.style.display = 'none';
       if (clothesGroup) clothesGroup.style.display = 'grid';
       if (perfumeGroup) perfumeGroup.style.display = 'none';
       if (fabricInput) fabricInput.placeholder = 'e.g., Lawn / Chiffon / Cotton';
@@ -922,22 +881,7 @@ window.InventoryPage = {
     const isPerfume = product.category === 'Perfume';
     const isHosiery = product.category === 'Hosiery';
 
-    // Parse size based on category
-    let valPart = '';
-    let unitPart = product.size || '';
-
-    if (isHosiery) {
-      unitPart = product.size || 'L';
-    } else if (product.size) {
-      const match = product.size.match(/^([0-9.]+|[SMLXLsmlxl]+)\s*(.*)$/);
-      if (match && match[2]) {
-        valPart = match[1];
-        unitPart = match[2].trim();
-      } else {
-        valPart = product.size;
-        unitPart = isPerfume ? 'ml (ملی لیٹر)' : 'Meter (میٹر)';
-      }
-    }
+    const currentSize = product.size || (isPerfume ? 'ml (ملی لیٹر)' : (isHosiery ? 'L' : 'Meter (میٹر)'));
 
     const namePlaceholder = isHosiery
       ? "e.g., Men's Cotton Banyan / White School Socks / Casual T-Shirt"
@@ -998,14 +942,11 @@ window.InventoryPage = {
               </datalist>
             </div>
             <div class="form-group" id="edit-group-size">
-              <label class="form-label" id="edit-size-label">${isHosiery ? 'Garment Size' : 'Size / Measurement'}</label>
-              <div id="edit-prod-size-layout" style="display:grid; grid-template-columns: ${isHosiery ? '1fr' : '85px 1fr'}; gap: var(--space-2);">
-                <input type="number" step="any" min="0" class="form-input" id="edit-prod-size-val" value="${valPart || ''}" placeholder="${isPerfume ? '50' : 'e.g. 2.5'}" style="text-align:center; ${isHosiery ? 'display:none;' : ''}">
-                <div id="edit-size-unit-wrapper" style="position:relative; width:100%;">
-                  <select class="form-select" id="edit-prod-size-unit" onchange="InventoryPage.onSizeUnitChange(this.value, 'edit')" style="width:100%;">
-                    ${this.getSizeOptionsHTML(product.category, unitPart)}
-                  </select>
-                </div>
+              <label class="form-label" id="edit-size-label">${isHosiery ? 'Garment Size' : 'Measurement / Size'}</label>
+              <div id="edit-size-unit-wrapper" style="position:relative; width:100%;">
+                <select class="form-select" id="edit-prod-size-unit" onchange="InventoryPage.onSizeUnitChange(this.value, 'edit')" style="width:100%;">
+                  ${this.getSizeOptionsHTML(product.category, currentSize)}
+                </select>
               </div>
             </div>
           </div>
@@ -1032,7 +973,7 @@ window.InventoryPage = {
           <div class="form-row" style="margin-top: var(--space-3); display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
             <div class="form-group">
               <label class="form-label">Current Stock Qty *</label>
-              <input type="number" class="form-input" id="edit-prod-qty" value="${product.quantity}" min="0" required>
+              <input type="number" step="any" class="form-input" id="edit-prod-qty" value="${product.quantity}" min="0" required>
               <small class="form-helper" id="edit-qty-helper" style="${isHosiery ? '' : 'display:none;'} color:var(--color-text-secondary); font-size:var(--text-xs); margin-top:2px;">${isHosiery ? 'Total Pieces / Packs' : ''}</small>
             </div>
             <div class="form-group">
@@ -1068,18 +1009,10 @@ window.InventoryPage = {
 
     // Compose size based on category
     let size = null;
-    if (category === 'Hosiery') {
-      const sizeUnitSelect = document.getElementById('edit-prod-size-unit');
-      const sizeUnitInput = document.getElementById('edit-new-size-input');
-      size = sizeUnitSelect ? (sizeUnitSelect.value !== 'ADD_NEW_SIZE' ? sizeUnitSelect.value : '') : (sizeUnitInput?.value.trim() || '');
-      if (!size) size = 'Standard Size';
-    } else {
-      const sizeVal = document.getElementById('edit-prod-size-val')?.value.trim() || '';
-      const sizeUnitSelect = document.getElementById('edit-prod-size-unit');
-      const sizeUnitInput = document.getElementById('edit-new-size-input');
-      const sizeUnit = sizeUnitSelect ? (sizeUnitSelect.value !== 'ADD_NEW_SIZE' ? sizeUnitSelect.value : '') : (sizeUnitInput?.value.trim() || '');
-      size = sizeVal ? (sizeUnit ? `${sizeVal} ${sizeUnit}` : sizeVal) : (sizeUnit || null);
-    }
+    const sizeUnitSelect = document.getElementById('edit-prod-size-unit');
+    const sizeUnitInput = document.getElementById('edit-new-size-input');
+    size = sizeUnitSelect ? (sizeUnitSelect.value !== 'ADD_NEW_SIZE' ? sizeUnitSelect.value : '') : (sizeUnitInput?.value.trim() || '');
+    if (!size && category === 'Hosiery') size = 'Standard Size';
 
     const color = null;
     const fabric = document.getElementById('edit-prod-fabric')?.value.trim() || null;
@@ -1127,7 +1060,7 @@ window.InventoryPage = {
         </div>
         <div class="form-group">
           <label class="form-label">Additional Quantity to Add (${unit}) *</label>
-          <input type="number" class="form-input" id="stockin-qty" value="10" min="1" required>
+          <input type="number" step="any" class="form-input" id="stockin-qty" value="10" min="0.01" required>
         </div>
         <div class="form-group" style="margin-top: var(--space-3);">
           <label class="form-label">Supplier Reference</label>

@@ -36,6 +36,12 @@ window.formatters = {
       if (fragType === 'body spray' || fragType === 'body spary') {
         return 'Items';
       }
+      if (fragType === 'attar') {
+        if (size.toLowerCase().includes('tola') || size.includes('تولہ')) {
+          return 'Tola';
+        }
+        return 'ml';
+      }
       if (size.toLowerCase().includes('bottle') || size.includes('بوتل')) {
         return 'Bottles';
       }
@@ -44,6 +50,9 @@ window.formatters = {
       }
       if (size.toLowerCase().includes('tester')) {
         return 'Testers';
+      }
+      if (p.inventory_unit && p.inventory_unit !== 'pcs') {
+        return p.inventory_unit;
       }
       return 'Items';
     }
@@ -89,8 +98,9 @@ window.formatters = {
   },
 
   formatStock(qty, product) {
-    const val = qty !== undefined && qty !== null ? qty : (product ? product.quantity : 0);
+    const val = qty !== undefined && qty !== null ? Number(qty) : (product ? Number(product.quantity) : 0);
     const unit = this.getProductUnit(product);
-    return `${val} ${unit}`;
+    const formattedVal = Number.isInteger(val) ? val.toString() : parseFloat(val.toFixed(2)).toString();
+    return `${formattedVal} ${unit}`;
   }
 };

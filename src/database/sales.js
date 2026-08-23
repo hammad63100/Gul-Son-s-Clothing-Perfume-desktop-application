@@ -24,8 +24,6 @@ function salesDB(db) {
           if (!Number.isFinite(price) || price < 0) throw new Error('Each item price must be a valid non-negative number');
           const product = db.prepare('SELECT * FROM products WHERE id = ? AND is_active = 1').get(item.product_id);
           if (!product) throw new Error('One or more products are unavailable');
-          const isAttar = String(product.fragrance_type || '').trim().toLowerCase() === 'attar';
-          if (!isAttar && !Number.isInteger(quantity)) throw new Error('Only Attar can use partial ml quantities');
           const requested = (requestedQuantities.get(product.id) || 0) + quantity;
           if (product.quantity < requested) throw new Error(`Insufficient stock for ${product.name}. Available: ${product.quantity}`);
           requestedQuantities.set(product.id, requested);
@@ -230,14 +228,11 @@ function salesDB(db) {
       // Query 2: Profit calculation - separate query to avoid complex subquery nesting
       let total_profit = 0;
       try {
-        // Get all sale IDs for this date first
         const saleIds = db.prepare(
           "SELECT id FROM sales WHERE DATE(created_at) = DATE(?)"
         ).all(dateStr);
         
         if (saleIds && saleIds.length > 0) {
-          // Calculate profit from all sale_items for these sales
-          // Use a simple approach: iterate over sale IDs
           for (const s of saleIds) {
             const profitRow = db.prepare(
               "SELECT COALESCE(SUM(quantity * (price_at_sale - purchase_price_at_sale)), 0) as p FROM sale_items WHERE sale_id = ?"

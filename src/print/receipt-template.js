@@ -31,9 +31,11 @@ function generateReceiptHTML(saleData, settings = {}) {
   const itemRows = items.map((item, idx) => {
     const name = item.product_name || 'Unknown';
     const variant = item.product_size || '';
-    const qty = item.quantity || 1;
-    const price = item.price_at_sale || 0;
-    const lineTotal = item.line_total || (price * qty);
+    const qtyNum = Number(item.quantity || 1);
+    const qtyFormatted = Number.isInteger(qtyNum) ? qtyNum.toString() : parseFloat(qtyNum.toFixed(2)).toString();
+    const qtyUnitStr = item.quantity_unit && !['pcs', 'Items', 'items'].includes(item.quantity_unit) ? ` ${item.quantity_unit}` : '';
+    const price = Number(item.price_at_sale || 0);
+    const lineTotal = item.line_total !== undefined ? Number(item.line_total) : (price * qtyNum);
 
     return `
       <tr>
@@ -41,7 +43,7 @@ function generateReceiptHTML(saleData, settings = {}) {
         <td class="col-item">
           ${escapeHtml(name)}${variant ? `<br><span class="variant">${escapeHtml(variant)}</span>` : ''}
         </td>
-        <td class="col-qty">${qty}</td>
+        <td class="col-qty">${qtyFormatted}${qtyUnitStr ? `<span style="font-size:9px;">${escapeHtml(qtyUnitStr)}</span>` : ''}</td>
         <td class="col-price">${formatNum(price)}</td>
         <td class="col-total">${formatNum(lineTotal)}</td>
       </tr>

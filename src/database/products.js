@@ -75,8 +75,6 @@ function productsDB(db) {
 
     if (!isUpdate || data.quantity !== undefined) {
       const quantity = nonNegativeNumber(data.quantity ?? 0, 'Quantity');
-      const isAttar = String(cleaned.fragrance_type || data.fragrance_type || '').trim().toLowerCase() === 'attar';
-      if (!isAttar && !Number.isInteger(quantity)) throw new Error('Quantity must be a whole number');
       cleaned.quantity = quantity;
     }
 
@@ -88,7 +86,6 @@ function productsDB(db) {
 
     if (!isUpdate || data.low_stock_threshold !== undefined) {
       const threshold = nonNegativeNumber(data.low_stock_threshold ?? 5, 'Low stock threshold');
-      if (!Number.isInteger(threshold)) throw new Error('Low stock threshold must be a whole number');
       cleaned.low_stock_threshold = threshold;
     }
 
@@ -105,8 +102,6 @@ function productsDB(db) {
       const params = [];
 
       if (filters.search) {
-        // Search every user-visible product identifier/attribute. The Search
-        // page is also used for SKU, brand and variant lookups.
         query += ` AND (
           LOWER(name) LIKE LOWER(?) OR LOWER(COALESCE(barcode, '')) LIKE LOWER(?) OR
           LOWER(COALESCE(sku, '')) LIKE LOWER(?) OR LOWER(COALESCE(brand, '')) LIKE LOWER(?) OR
@@ -144,8 +139,12 @@ function productsDB(db) {
       return db.prepare('SELECT * FROM products WHERE id = ?').get(id);
     },
 
+    getByBarcode(barcode) {
+      return db.prepare('SELECT * FROM products WHERE (barcode = ? OR sku = ?) AND is_active = 1').get(barcode, barcode);
+    },
+
     add(data) {
-      const sanitized = validateAndSanitizeProduct(data, false);
+      const sanitized = validateAndSanitizeProduct(data);
       const stmt = db.prepare(`
         INSERT INTO products (name, category, brand, size, color, fabric, fragrance_type, gender, barcode, sku, purchase_price, sale_price, wholesale_price, quantity, inventory_unit, retail_quantity, low_stock_threshold, supplier)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -207,8 +206,7 @@ function productsDB(db) {
       const txn = db.transaction(() => {
         const product = this.get(id);
         if (!product || !product.is_active) throw new Error('Active product not found');
-        const isAttar = String(product.fragrance_type || '').trim().toLowerCase() === 'attar';
-        if (quantity <= 0 || (!isAttar && !Number.isInteger(quantity))) throw new Error(isAttar ? 'Stock-in quantity must be greater than zero' : 'Stock-in quantity must be a whole number');
+        if (quantity <= 0) throw new Error('Stock-in quantity must be greater than zero');
         db.prepare("UPDATE products SET quantity = quantity + ?, updated_at = datetime('now', 'localtime') WHERE id = ?").run(quantity, id);
         db.prepare(`
           INSERT INTO stock_adjustments (product_id, product_name, adjustment_type, quantity, reason)
@@ -225,7 +223,8 @@ function productsDB(db) {
     },
 
     adjustStock(id, quantity, reason) {
-      quantity = positiveInteger(quantity, 'Adjustment quantity');
+      quantity = nonNegativeNumber(quantity, 'Adjustment quantity');
+      if (quantity <= 0) throw new Error('Adjustment quantity must be greater than zero');
       const txn = db.transaction(() => {
         const product = this.get(id);
         if (!product || !product.is_active) throw new Error('Active product not found');
@@ -261,10 +260,7 @@ function productsDB(db) {
         params.push(dateRange.endDate + ' 23:59:59');
       }
 
-      // First get all active products
       const productsList = db.prepare('SELECT id, name, category, size, color, sale_price FROM products WHERE is_active = 1').all();
-      
-      // If there are no products, return empty array
       if (!productsList || productsList.length === 0) return [];
       
       const salesQuery = `
@@ -298,7 +294,6 @@ function productsDB(db) {
         }
       }
       
-      // Sort descending by total_sold and apply limit
       results.sort((a, b) => b.total_sold - a.total_sold);
       return results.slice(0, limit);
     },

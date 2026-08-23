@@ -322,6 +322,14 @@ window.POSPage = {
       return;
     }
 
+    const isAttar = product.category === 'Perfume' && String(product.fragrance_type || '').toLowerCase() === 'attar';
+    const isLooseCloth = product.category === 'Clothes' && String(product.size || '').toLowerCase().includes('meter');
+
+    if (isAttar || isLooseCloth) {
+      this.openDecantModal(product);
+      return;
+    }
+
     const unit = formatters.getProductUnit(product);
     const existing = this.cart.find(i => i.product_id === productId);
     if (existing) {
@@ -344,12 +352,14 @@ window.POSPage = {
         product_id: product.id,
         product_name: product.name,
         category: product.category,
+        fragrance_type: product.fragrance_type,
         variant: variantText,
         product_size: product.size,
         product_color: product.color,
         price_at_sale: product.sale_price,
         purchase_price_at_sale: product.purchase_price,
         quantity: 1,
+        quantity_unit: unit,
         max_stock: product.quantity,
       });
     }
@@ -357,11 +367,169 @@ window.POSPage = {
     this.renderCart();
   },
 
+  openDecantModal(product) {
+    const isAttar = product.category === 'Perfume' && String(product.fragrance_type || '').toLowerCase() === 'attar';
+    const isLooseCloth = product.category === 'Clothes' && String(product.size || '').toLowerCase().includes('meter');
+    const unit = isAttar ? 'ml' : (isLooseCloth ? 'Meter' : formatters.getProductUnit(product));
+    const baseRate = Number(product.sale_price) || 0;
+
+    let presetsHTML = '';
+    if (isAttar) {
+      const presets = [
+        { label: '3 ml', val: 3 },
+        { label: '6 ml (Aadha Tola)', val: 6 },
+        { label: '12 ml (1 Tola)', val: 12 },
+        { label: '24 ml (2 Tola)', val: 24 },
+        { label: '50 ml', val: 50 },
+        { label: '100 ml', val: 100 }
+      ];
+      presetsHTML = `
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;">
+          ${presets.map(p => `
+            <button type="button" class="btn btn-secondary btn-sm" style="font-size:12px; padding:4px 10px;" onclick="POSPage.selectDecantPreset(${p.val}, ${baseRate})">${p.label}</button>
+          `).join('')}
+        </div>
+      `;
+    } else if (isLooseCloth) {
+      const presets = [
+        { label: '1.5 m', val: 1.5 },
+        { label: '2.25 m (Shalwar)', val: 2.25 },
+        { label: '2.5 m (Kameez)', val: 2.5 },
+        { label: '3.5 m', val: 3.5 },
+        { label: '4.0 m (Suit)', val: 4.0 },
+        { label: '4.5 m (Full Suit)', val: 4.5 }
+      ];
+      presetsHTML = `
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;">
+          ${presets.map(p => `
+            <button type="button" class="btn btn-secondary btn-sm" style="font-size:12px; padding:4px 10px;" onclick="POSPage.selectDecantPreset(${p.val}, ${baseRate})">${p.label}</button>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    const defaultQty = isAttar ? 6 : (isLooseCloth ? 2.5 : 1);
+    const initialTotal = (defaultQty * baseRate).toFixed(2);
+
+    modal.show({
+      title: `🧴 Decant / Custom Loose Sale — ${product.name}`,
+      bodyHTML: `
+        <div style="margin-bottom:14px; padding:12px; background:var(--color-bg-secondary); border-radius:var(--radius-md); border:1px solid var(--color-border);">
+          <div style="font-weight:700; font-size:14px; color:var(--color-text-primary);">${product.name}</div>
+          <div style="font-size:12px; color:var(--color-text-secondary); margin-top:3px;">
+            Available Stock: <strong style="color:var(--color-accent);">${product.quantity} ${unit}</strong> &nbsp;•&nbsp; Unit Rate: <strong>Rs. ${baseRate.toLocaleString()} / ${unit}</strong>
+          </div>
+        </div>
+
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--color-text-muted); margin-bottom:6px;">Quick Presets:</div>
+        ${presetsHTML}
+
+        <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:var(--space-3);">
+          <div class="form-group">
+            <label class="form-label">Quantity (${unit}) *</label>
+            <input type="number" step="any" min="0.01" max="${product.quantity}" class="form-input" id="pos-decant-qty" value="${defaultQty}" oninput="POSPage.onDecantQtyChange(${baseRate})" autofocus>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Total Price (Rs.) *</label>
+            <input type="number" step="any" min="0" class="form-input" id="pos-decant-total" value="${initialTotal}">
+            <small class="form-helper" style="font-size:10px;">Calculated from rate; editable</small>
+          </div>
+        </div>
+      `,
+      footerHTML: `
+        <button class="btn btn-secondary" onclick="modal.hide()">Cancel</button>
+        <button class="btn btn-primary" onclick="POSPage.confirmDecantSale(${product.id}, '${unit}')">➕ Add to Bill</button>
+      `
+    });
+
+    setTimeout(() => {
+      const input = document.getElementById('pos-decant-qty');
+      input?.focus();
+      input?.select();
+      input?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          POSPage.confirmDecantSale(product.id, unit);
+        }
+      });
+    }, 100);
+  },
+
+  selectDecantPreset(val, rate) {
+    const qtyInput = document.getElementById('pos-decant-qty');
+    const totalInput = document.getElementById('pos-decant-total');
+    if (qtyInput) qtyInput.value = val;
+    if (totalInput) totalInput.value = (val * rate).toFixed(2);
+  },
+
+  onDecantQtyChange(rate) {
+    const qty = parseFloat(document.getElementById('pos-decant-qty')?.value) || 0;
+    const totalInput = document.getElementById('pos-decant-total');
+    if (totalInput) totalInput.value = (qty * rate).toFixed(2);
+  },
+
+  confirmDecantSale(productId, unit) {
+    const product = this.products.find(p => p.id === productId);
+    if (!product) return;
+
+    const qty = parseFloat(document.getElementById('pos-decant-qty')?.value) || 0;
+    const total = parseFloat(document.getElementById('pos-decant-total')?.value) || 0;
+
+    if (qty <= 0) return toast.error('Please enter a valid quantity greater than 0');
+    if (qty > product.quantity) return toast.warning(`Cannot exceed available stock (${product.quantity} ${unit})`);
+
+    const unitPrice = qty > 0 ? (total / qty) : product.sale_price;
+
+    const existing = this.cart.find(i => i.product_id === productId);
+    if (existing) {
+      if (existing.quantity + qty > product.quantity) {
+        return toast.warning(`Cannot exceed total available stock (${product.quantity} ${unit})`);
+      }
+      existing.quantity = parseFloat((existing.quantity + qty).toFixed(3));
+      existing.price_at_sale = unitPrice;
+    } else {
+      this.cart.push({
+        product_id: product.id,
+        product_name: product.name,
+        category: product.category,
+        fragrance_type: product.fragrance_type,
+        variant: `${qty} ${unit}`,
+        product_size: `${qty} ${unit}`,
+        product_color: product.color,
+        price_at_sale: unitPrice,
+        purchase_price_at_sale: product.purchase_price,
+        quantity: qty,
+        quantity_unit: unit,
+        max_stock: product.quantity,
+      });
+    }
+
+    modal.hide();
+    toast.success(`Added ${qty} ${unit} "${product.name}" to bill!`);
+    this.renderCart();
+  },
+
+  setCartItemQty(productId, val) {
+    const item = this.cart.find(i => i.product_id === productId);
+    if (!item) return;
+
+    const qty = parseFloat(val);
+    if (isNaN(qty) || qty <= 0) {
+      this.cart = this.cart.filter(i => i.product_id !== productId);
+    } else if (qty > item.max_stock) {
+      item.quantity = item.max_stock;
+      toast.warning(`Cannot exceed available stock (${item.max_stock} ${item.quantity_unit || 'Items'})`);
+    } else {
+      item.quantity = parseFloat(qty.toFixed(3));
+    }
+    this.renderCart();
+  },
+
   updateQuantity(productId, delta) {
     const item = this.cart.find(i => i.product_id === productId);
     if (!item) return;
 
-    item.quantity += delta;
+    item.quantity = parseFloat((item.quantity + delta).toFixed(3));
     if (item.quantity > item.max_stock) {
       item.quantity = item.max_stock;
       const unit = formatters.getProductUnit(item);
@@ -479,9 +647,10 @@ window.POSPage = {
               <td><span class="badge ${item.category === 'Clothes' ? 'badge-clothes' : (item.category === 'Hosiery' ? 'badge-hosiery' : 'badge-perfume')}">${item.variant || '-'}</span></td>
               <td>
                 <div class="flex items-center gap-1">
-                  <button class="btn btn-ghost btn-sm" style="padding:2px 6px;" onclick="POSPage.updateQuantity(${item.product_id}, -1)">-</button>
-                  <span style="font-weight:700;">${item.quantity}</span>
-                  <button class="btn btn-ghost btn-sm" style="padding:2px 6px;" onclick="POSPage.updateQuantity(${item.product_id}, 1)">+</button>
+                  <button class="btn btn-ghost btn-sm" style="padding:2px 5px;" onclick="POSPage.updateQuantity(${item.product_id}, -1)">-</button>
+                  <input type="number" step="any" min="0.01" max="${item.max_stock}" value="${item.quantity}" onchange="POSPage.setCartItemQty(${item.product_id}, this.value)" style="width:48px; text-align:center; font-weight:700; height:24px; font-size:11px; border:1px solid var(--color-border); border-radius:4px; background:var(--color-bg-primary);">
+                  <span style="font-size:10px; color:var(--color-text-secondary);">${item.quantity_unit || ''}</span>
+                  <button class="btn btn-ghost btn-sm" style="padding:2px 5px;" onclick="POSPage.updateQuantity(${item.product_id}, 1)">+</button>
                 </div>
               </td>
               <td>Rs. ${item.price_at_sale.toLocaleString()}</td>
@@ -580,6 +749,7 @@ window.POSPage = {
       product_size: i.product_size,
       product_color: i.product_color,
       quantity: i.quantity,
+      quantity_unit: i.quantity_unit || 'pcs',
       price_at_sale: i.price_at_sale,
       purchase_price_at_sale: i.purchase_price_at_sale || 0,
       line_total: i.price_at_sale * i.quantity
