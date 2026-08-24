@@ -9,6 +9,7 @@ const { settingsDB } = require('../database/settings');
 const { expensesDB } = require('../database/expenses');
 const { masterDataDB } = require('../database/brands');
 const { suppliersDB } = require('../database/suppliers');
+const { raastDB } = require('../database/raast');
 const {
   backupDatabase,
   exportAllToJson,
@@ -21,7 +22,7 @@ const {
 const { generateInvoicePDF } = require('../export/pdf');
 const { exportReportToExcel } = require('../export/excel');
 const { buildWhatsAppDesktopUrl } = require('../utils/whatsapp');
-const { printReceipt, printTestPage, getAvailablePrinters } = require('../print/thermal-printer');
+const { printReceipt, printRaastReceipt, printTestPage, getAvailablePrinters } = require('../print/thermal-printer');
 
 function registerHandlers(db, ipcMain) {
   const products = productsDB(db);
@@ -34,6 +35,7 @@ function registerHandlers(db, ipcMain) {
   const expenses = expensesDB(db);
   const masterData = masterDataDB(db);
   const suppliers = suppliersDB(db);
+  const raast = raastDB(db);
 
   // ─── Enhanced Dashboard Summary ───
   ipcMain.handle('dashboard:getSummary', () => {
@@ -57,10 +59,23 @@ function registerHandlers(db, ipcMain) {
       try { lowStockProducts = products.getLowStock(lowStockThreshold) || []; } catch (e) { console.error('Dashboard: lowStock error:', e.message); }
 
       let todayExpenses = 0;
-      try { todayExpenses = expenses.getSummary(today, today) || 0; } catch (e) { console.error('Dashboard: todayExpenses error:', e.message); }
+      let todayShopExpenses = 0;
+      let todayHomeExpenses = 0;
+      try {
+        todayExpenses = expenses.getSummary(today, today) || 0;
+        todayShopExpenses = expenses.getSummary(today, today, 'shop') || 0;
+        todayHomeExpenses = expenses.getSummary(today, today, 'home') || 0;
+      } catch (e) { console.error('Dashboard: todayExpenses error:', e.message); }
 
       let monthlyExpensesVal = 0;
-      try { monthlyExpensesVal = expenses.getSummary(`${year}-${String(month).padStart(2, '0')}-01`, today) || 0; } catch (e) { console.error('Dashboard: monthlyExpenses error:', e.message); }
+      let monthlyShopExpenses = 0;
+      let monthlyHomeExpenses = 0;
+      const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+      try {
+        monthlyExpensesVal = expenses.getSummary(monthStart, today) || 0;
+        monthlyShopExpenses = expenses.getSummary(monthStart, today, 'shop') || 0;
+        monthlyHomeExpenses = expenses.getSummary(monthStart, today, 'home') || 0;
+      } catch (e) { console.error('Dashboard: monthlyExpenses error:', e.message); }
 
       // Product counts (safe)
       let totalClothesCount = 0, totalHosieryCount = 0, totalPerfumeCount = 0, totalProductsCount = 0, outOfStockCnt = 0, stockVal = 0;
@@ -130,7 +145,7 @@ function registerHandlers(db, ipcMain) {
         let daySummary = { total_revenue: 0, total_profit: 0 };
         try { daySummary = sales.getDailySummary(dateStr) || daySummary; } catch (e) {}
         let dayExp = 0;
-        try { dayExp = expenses.getSummary(dateStr, dateStr) || 0; } catch (e) {}
+        try { dayExp = expenses.getSummary(dateStr, dateStr, 'shop') || 0; } catch (e) {}
         last7Days.push({
           date: dateStr.slice(5), // MM-DD
           revenue: daySummary.total_revenue || 0,
@@ -138,7 +153,7 @@ function registerHandlers(db, ipcMain) {
         });
       }
 
-      // Cash In Hand = All-time cash sales revenue - all-time expenses - all-time cash refunds
+      // Cash In Hand = All-time cash sales revenue - all-time expenses (shop & home cash) - all-time cash refunds
       let allTimeCashSales = 0;
       try {
         allTimeCashSales = (db.prepare("SELECT COALESCE(SUM(total_amount), 0) as val FROM sales WHERE payment_method = 'Cash'").get() || {}).val || 0;
@@ -157,9 +172,13 @@ function registerHandlers(db, ipcMain) {
         today: dailySummary,
         thisMonth: monthlySummary,
         todayExpenses,
+        todayShopExpenses,
+        todayHomeExpenses,
         monthlyExpenses: monthlyExpensesVal,
-        netDailyProfit: Math.max(0, (dailySummary.total_profit || 0) - todayExpenses),
-        netMonthlyProfit: Math.max(0, (monthlySummary.total_profit || 0) - monthlyExpensesVal),
+        monthlyShopExpenses,
+        monthlyHomeExpenses,
+        netDailyProfit: Math.max(0, (dailySummary.total_profit || 0) - todayShopExpenses),
+        netMonthlyProfit: Math.max(0, (monthlySummary.total_profit || 0) - monthlyShopExpenses),
         lowStockProducts,
         topSelling,
         topPerfumes,
@@ -184,7 +203,9 @@ function registerHandlers(db, ipcMain) {
       return {
         today: { total_sales: 0, total_revenue: 0, total_profit: 0, total_customers: 0 },
         thisMonth: { total_sales: 0, total_revenue: 0, total_profit: 0 },
-        todayExpenses: 0, monthlyExpenses: 0, netDailyProfit: 0, netMonthlyProfit: 0,
+        todayExpenses: 0, todayShopExpenses: 0, todayHomeExpenses: 0,
+        monthlyExpenses: 0, monthlyShopExpenses: 0, monthlyHomeExpenses: 0,
+        netDailyProfit: 0, netMonthlyProfit: 0,
         lowStockProducts: [], topSelling: [], topPerfumes: [], topClothes: [], topHosiery: [],
         totalClothes: 0, totalHosiery: 0, totalPerfume: 0, totalProducts: 0, outOfStockCount: 0,
         stockValue: 0, totalCustomers: 0, totalSuppliers: 0, pendingSupplierPayments: 0,
@@ -209,6 +230,8 @@ function registerHandlers(db, ipcMain) {
     const sales = db.prepare('SELECT COALESCE(SUM(total_amount), 0) AS total FROM sales WHERE created_at >= ? AND created_at <= ?').get(start, end).total;
     const refunds = db.prepare('SELECT COALESCE(SUM(refund_amount), 0) AS total FROM returns WHERE created_at >= ? AND created_at <= ?').get(start, end).total;
     const expenseTotal = db.prepare('SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE date >= ? AND date <= ?').get(start.slice(0, 10), end.slice(0, 10)).total;
+    const shopExpenseTotal = db.prepare("SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE (expense_type = 'shop' OR expense_type IS NULL) AND date >= ? AND date <= ?").get(start.slice(0, 10), end.slice(0, 10)).total;
+    const homeExpenseTotal = db.prepare("SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE expense_type = 'home' AND date >= ? AND date <= ?").get(start.slice(0, 10), end.slice(0, 10)).total;
     const salesRows = db.prepare('SELECT id, discount_amount FROM sales WHERE created_at >= ? AND created_at <= ?').all(start, end);
     let salesProfit = 0;
     for (const s of salesRows) {
@@ -218,9 +241,18 @@ function registerHandlers(db, ipcMain) {
     const returnedProfit = db.prepare(`SELECT COALESCE(SUM(r.refund_amount - (r.quantity * si.purchase_price_at_sale)), 0) AS total FROM returns r JOIN sale_items si ON si.sale_id = r.sale_id AND si.product_id = r.product_id WHERE r.created_at >= ? AND r.created_at <= ?`).get(start, end).total;
     const income = Number(sales) - Number(refunds);
     return {
-      period: monthly ? 'monthly' : 'daily', value: selected, grossIncome: Number(sales), refunds: Number(refunds), expenses: Number(expenseTotal),
-      income, outcome: Number(refunds) + Number(expenseTotal), netCashFlow: income - Number(expenseTotal),
-      operatingProfit: Math.max(0, Number(salesProfit) - Math.max(0, Number(returnedProfit)) - Number(expenseTotal)), currency: settings.getValue('currency_symbol') || 'Rs.',
+      period: monthly ? 'monthly' : 'daily',
+      value: selected,
+      grossIncome: Number(sales),
+      refunds: Number(refunds),
+      expenses: Number(expenseTotal),
+      shopExpenses: Number(shopExpenseTotal),
+      homeExpenses: Number(homeExpenseTotal),
+      income,
+      outcome: Number(refunds) + Number(expenseTotal),
+      netCashFlow: income - Number(expenseTotal),
+      operatingProfit: Math.max(0, Number(salesProfit) - Math.max(0, Number(returnedProfit)) - Number(shopExpenseTotal)),
+      currency: settings.getValue('currency_symbol') || 'Rs.',
     };
   });
 
@@ -272,7 +304,8 @@ function registerHandlers(db, ipcMain) {
   ipcMain.handle('expenses:getAll', (_, filters) => expenses.getAll(filters));
   ipcMain.handle('expenses:add', (_, data) => expenses.add(data));
   ipcMain.handle('expenses:delete', (_, id) => expenses.delete(id));
-  ipcMain.handle('expenses:getSummary', (_, startDate, endDate) => expenses.getSummary(startDate, endDate));
+  ipcMain.handle('expenses:getSummary', (_, startDate, endDate, type) => expenses.getSummary(startDate, endDate, type));
+  ipcMain.handle('expenses:getBreakdown', (_, startDate, endDate) => expenses.getBreakdown(startDate, endDate));
 
   // ─── Categories & Brands & Fragrance Types ───
   ipcMain.handle('master:getCategories', (_, type) => masterData.getCategories(type));
@@ -412,6 +445,13 @@ function registerHandlers(db, ipcMain) {
     return null;
   });
 
+  // ─── Raast & Digital Money Transfers ───
+  ipcMain.handle('raast:create', (_, data) => raast.create(data));
+  ipcMain.handle('raast:getAll', (_, filters) => raast.getAll(filters));
+  ipcMain.handle('raast:get', (_, id) => raast.get(id));
+  ipcMain.handle('raast:getStats', (_, filters) => raast.getStats(filters));
+  ipcMain.handle('raast:delete', (_, id) => raast.delete(id));
+
   // ─── Thermal Receipt Printer (BT-801 / 80mm) ───
 
   // Silent print a receipt directly to the configured thermal printer
@@ -422,6 +462,16 @@ function registerHandlers(db, ipcMain) {
     const settingsData = settings.get();
     const printerName = settingsData.thermal_printer_name || '';
     return await printReceipt(saleData, settingsData, printerName);
+  });
+
+  // Silent print a Raast transfer slip directly to the thermal printer
+  ipcMain.handle('print:raastReceipt', async (_, raastData) => {
+    if (!raastData || typeof raastData !== 'object') {
+      throw new Error('Invalid Raast data for printing');
+    }
+    const settingsData = settings.get();
+    const printerName = settingsData.thermal_printer_name || '';
+    return await printRaastReceipt(raastData, settingsData, printerName);
   });
 
   // Return list of available system printers for settings UI

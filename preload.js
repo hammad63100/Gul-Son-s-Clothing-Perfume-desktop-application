@@ -38,7 +38,8 @@ contextBridge.exposeInMainWorld('api', {
     getAll: (filters) => ipcRenderer.invoke('expenses:getAll', filters),
     add: (data) => ipcRenderer.invoke('expenses:add', data),
     delete: (id) => ipcRenderer.invoke('expenses:delete', id),
-    getSummary: (startDate, endDate) => ipcRenderer.invoke('expenses:getSummary', startDate, endDate),
+    getSummary: (startDate, endDate, type) => ipcRenderer.invoke('expenses:getSummary', startDate, endDate, type),
+    getBreakdown: (startDate, endDate) => ipcRenderer.invoke('expenses:getBreakdown', startDate, endDate),
   },
 
   // ─── Suppliers ───
@@ -117,9 +118,19 @@ contextBridge.exposeInMainWorld('api', {
     generateInvoicePDF: (saleData) => ipcRenderer.invoke('backup:generateInvoicePDF', saleData),
   },
 
+  // ─── Raast & Digital Money Transfers ───
+  raast: {
+    create: (data) => ipcRenderer.invoke('raast:create', data),
+    getAll: (filters) => ipcRenderer.invoke('raast:getAll', filters),
+    get: (id) => ipcRenderer.invoke('raast:get', id),
+    getStats: (filters) => ipcRenderer.invoke('raast:getStats', filters),
+    delete: (id) => ipcRenderer.invoke('raast:delete', id),
+  },
+
   // ─── Thermal Receipt Printer (BT-801 / 80mm) ───
   print: {
     thermalReceipt: (saleData) => ipcRenderer.invoke('print:thermalReceipt', saleData),
+    raastReceipt: (raastData) => ipcRenderer.invoke('print:raastReceipt', raastData),
     getPrinters: () => ipcRenderer.invoke('print:getPrinters'),
     testPrint: () => ipcRenderer.invoke('print:testPrint'),
   },

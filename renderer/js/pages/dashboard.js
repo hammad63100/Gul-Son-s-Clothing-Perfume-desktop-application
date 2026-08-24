@@ -57,6 +57,7 @@ window.DashboardPage = {
             </div>
             <div class="stat-value" id="dash-today-exp">...</div>
             <div class="stat-label">3. Today's Expenses</div>
+            <small id="dash-today-exp-detail" style="font-size:11px; color:var(--color-text-muted); display:block; margin-top:2px;">Shop: - | Home: -</small>
           </div>
 
           <div class="stat-card">
@@ -321,7 +322,9 @@ window.DashboardPage = {
       document.getElementById('dash-financial-income').textContent = formatters.currency(data.income, currency);
       document.getElementById('dash-financial-gross').textContent = `Gross sales: ${formatters.currency(data.grossIncome, currency)} | Returns: ${formatters.currency(data.refunds, currency)}`;
       document.getElementById('dash-financial-outcome').textContent = formatters.currency(data.outcome, currency);
-      document.getElementById('dash-financial-outcome-detail').textContent = `Expenses: ${formatters.currency(data.expenses, currency)} | Refunds: ${formatters.currency(data.refunds, currency)}`;
+      const shopExp = data.shopExpenses || 0;
+      const homeExp = data.homeExpenses || 0;
+      document.getElementById('dash-financial-outcome-detail').textContent = `Shop: ${formatters.currency(shopExp, currency)} | Home: ${formatters.currency(homeExp, currency)} | Refunds: ${formatters.currency(data.refunds, currency)}`;
       const cash = document.getElementById('dash-financial-cashflow');
       cash.textContent = formatters.currency(data.netCashFlow, currency);
       cash.style.color = data.netCashFlow < 0 ? 'var(--color-danger)' : 'var(--color-success)';
@@ -337,9 +340,17 @@ window.DashboardPage = {
       const curr = summary.currency || 'Rs.';
 
       // Row 1: Core Financials
+      const todayTotalExp = summary.todayExpenses || 0;
+      const todayShopExp = summary.todayShopExpenses || 0;
+      const todayHomeExp = summary.todayHomeExpenses || 0;
+
       document.getElementById('dash-today-sales').textContent = formatters.currency(summary.today.total_revenue, curr);
       document.getElementById('dash-today-profit').textContent = formatters.currency(summary.netDailyProfit, curr);
-      document.getElementById('dash-today-exp').textContent = formatters.currency(summary.todayExpenses, curr);
+      document.getElementById('dash-today-exp').textContent = formatters.currency(todayTotalExp, curr);
+      const expDetailEl = document.getElementById('dash-today-exp-detail');
+      if (expDetailEl) {
+        expDetailEl.textContent = `Shop: ${formatters.currency(todayShopExp, curr)} | Home: ${formatters.currency(todayHomeExp, curr)}`;
+      }
       document.getElementById('dash-cash-in-hand').textContent = formatters.currency(summary.cashInHand, curr);
 
       // Row 2: Monthly & Invoices
@@ -391,9 +402,11 @@ window.DashboardPage = {
       // Chart 2: Profit vs Expenses Breakdown
       const profitExpEl = document.getElementById('chart-profit-expenses');
       const monthlyRev = summary.thisMonth.total_revenue || 0;
-      const monthlyExp = summary.monthlyExpenses || 0;
+      const monthlyShopExp = summary.monthlyShopExpenses || 0;
+      const monthlyHomeExp = summary.monthlyHomeExpenses || 0;
+      const monthlyExpTotal = summary.monthlyExpenses || 0;
       const monthlyProfit = summary.netMonthlyProfit || 0;
-      const maxVal = Math.max(monthlyRev, monthlyExp + monthlyProfit, 1);
+      const maxVal = Math.max(monthlyRev, monthlyExpTotal + monthlyProfit, 1);
 
       profitExpEl.innerHTML = `
         <div>
@@ -401,27 +414,37 @@ window.DashboardPage = {
             <span>Monthly Revenue</span>
             <span style="font-weight:700; color:var(--color-accent);">${formatters.currency(monthlyRev, curr)}</span>
           </div>
-          <div style="height:10px; background:var(--color-bg-tertiary); border-radius:5px; overflow:hidden;">
+          <div style="height:8px; background:var(--color-bg-tertiary); border-radius:4px; overflow:hidden;">
             <div style="height:100%; width:${Math.round((monthlyRev/maxVal)*100)}%; background:var(--color-accent);"></div>
           </div>
         </div>
 
         <div>
           <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:var(--text-sm);">
-            <span>Monthly Expenses</span>
-            <span style="font-weight:700; color:var(--color-danger);">${formatters.currency(monthlyExp, curr)}</span>
+            <span>Shop Expenses</span>
+            <span style="font-weight:700; color:var(--color-danger);">${formatters.currency(monthlyShopExp, curr)}</span>
           </div>
-          <div style="height:10px; background:var(--color-bg-tertiary); border-radius:5px; overflow:hidden;">
-            <div style="height:100%; width:${Math.round((monthlyExp/maxVal)*100)}%; background:var(--color-danger);"></div>
+          <div style="height:8px; background:var(--color-bg-tertiary); border-radius:4px; overflow:hidden;">
+            <div style="height:100%; width:${Math.round((monthlyShopExp/maxVal)*100)}%; background:var(--color-danger);"></div>
           </div>
         </div>
 
         <div>
           <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:var(--text-sm);">
-            <span>Net Monthly Profit</span>
+            <span>Home Expenses</span>
+            <span style="font-weight:700; color:var(--color-gold);">${formatters.currency(monthlyHomeExp, curr)}</span>
+          </div>
+          <div style="height:8px; background:var(--color-bg-tertiary); border-radius:4px; overflow:hidden;">
+            <div style="height:100%; width:${Math.round((monthlyHomeExp/maxVal)*100)}%; background:var(--color-gold);"></div>
+          </div>
+        </div>
+
+        <div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:var(--text-sm);">
+            <span>Net Monthly Shop Profit</span>
             <span style="font-weight:700; color:var(--color-success);">${formatters.currency(monthlyProfit, curr)}</span>
           </div>
-          <div style="height:10px; background:var(--color-bg-tertiary); border-radius:5px; overflow:hidden;">
+          <div style="height:8px; background:var(--color-bg-tertiary); border-radius:4px; overflow:hidden;">
             <div style="height:100%; width:${Math.round((monthlyProfit/maxVal)*100)}%; background:var(--color-success);"></div>
           </div>
         </div>

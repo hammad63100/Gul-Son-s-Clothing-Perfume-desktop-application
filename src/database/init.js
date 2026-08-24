@@ -103,12 +103,9 @@ async function createDatabaseAdapter(dbPath) {
       try {
         const data = wasmDb.export();
         const buffer = Buffer.from(data);
-        // Write and replace atomically so a crash or competing file operation
-        // cannot leave a partially-written database behind.
         const tempPath = `${dbPath}.${process.pid}.tmp`;
         fs.writeFileSync(tempPath, buffer);
         if (process.platform === 'win32' && fs.existsSync(dbPath)) {
-          // Windows does not replace an existing file with renameSync().
           fs.copyFileSync(tempPath, dbPath);
           fs.unlinkSync(tempPath);
         } else {
@@ -131,9 +128,6 @@ async function createDatabaseAdapter(dbPath) {
         if (params.length === 1 && Array.isArray(params[0])) {
           boundParams = params[0];
         }
-        // sql.js db.exec() does not bind parameters reliably. Using a
-        // prepared statement here is required for every parameterized SELECT
-        // (including reading the sale immediately after inserting it).
         stmt = wasmDb.prepare(sql);
         if (boundParams && boundParams.length > 0) stmt.bind(boundParams);
         const rows = [];
@@ -293,6 +287,7 @@ async function initDatabase(customDbPath = null) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
       category TEXT NOT NULL DEFAULT 'Shop Rent',
+      expense_type TEXT NOT NULL DEFAULT 'shop',
       amount REAL NOT NULL DEFAULT 0,
       payment_method TEXT NOT NULL DEFAULT 'Cash',
       date TEXT NOT NULL,
@@ -358,7 +353,7 @@ async function initDatabase(customDbPath = null) {
       sale_invoice_no TEXT,
       product_id INTEGER NOT NULL,
       product_name TEXT NOT NULL,
-      quantity INTEGER NOT NULL,
+      quantity REAL NOT NULL,
       refund_amount REAL NOT NULL DEFAULT 0,
       reason TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
@@ -371,7 +366,7 @@ async function initDatabase(customDbPath = null) {
       product_id INTEGER NOT NULL,
       product_name TEXT NOT NULL,
       adjustment_type TEXT NOT NULL,
-      quantity INTEGER NOT NULL,
+      quantity REAL NOT NULL,
       reason TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
       FOREIGN KEY (product_id) REFERENCES products(id)
@@ -381,7 +376,7 @@ async function initDatabase(customDbPath = null) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       product_id INTEGER NOT NULL,
       product_name TEXT NOT NULL,
-      quantity INTEGER NOT NULL,
+      quantity REAL NOT NULL,
       supplier TEXT,
       reason TEXT,
       notes TEXT,
@@ -399,6 +394,26 @@ async function initDatabase(customDbPath = null) {
       note TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
       FOREIGN KEY (customer_id) REFERENCES customers(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS raast_transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      transaction_type TEXT NOT NULL,
+      bill_type TEXT,
+      consumer_number TEXT,
+      customer_name TEXT,
+      customer_phone TEXT,
+      raast_id TEXT,
+      account_title TEXT,
+      bank_name TEXT,
+      amount REAL NOT NULL,
+      fee_amount REAL NOT NULL DEFAULT 0,
+      profit REAL NOT NULL DEFAULT 0,
+      total_collected REAL NOT NULL DEFAULT 0,
+      trx_reference TEXT,
+      status TEXT DEFAULT 'Completed',
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
     );
 
     CREATE TABLE IF NOT EXISTS settings (
@@ -432,6 +447,9 @@ async function initDatabase(customDbPath = null) {
   safeAddColumn('customers', 'outstanding_balance REAL NOT NULL DEFAULT 0');
   safeAddColumn('returns', "refund_type TEXT DEFAULT 'Cash Refund'");
   safeAddColumn('brands', "category TEXT NOT NULL DEFAULT 'Clothes'");
+  safeAddColumn('raast_transactions', 'bill_type TEXT');
+  safeAddColumn('raast_transactions', 'consumer_number TEXT');
+  safeAddColumn('expenses', "expense_type TEXT NOT NULL DEFAULT 'shop'");
 
   // Update known perfume/hosiery brands to correct category for existing databases
   try {
@@ -468,6 +486,9 @@ async function initDatabase(customDbPath = null) {
     CREATE INDEX IF NOT EXISTS idx_sales_created_at ON sales(created_at);
     CREATE INDEX IF NOT EXISTS idx_sales_invoice_no ON sales(invoice_no);
     CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
+    CREATE INDEX IF NOT EXISTS idx_expenses_type ON expenses(expense_type);
+    CREATE INDEX IF NOT EXISTS idx_raast_created_at ON raast_transactions(created_at);
+    CREATE INDEX IF NOT EXISTS idx_raast_type ON raast_transactions(transaction_type);
   `);
 
   // ─── Seed Default Data ───
@@ -487,6 +508,7 @@ async function initDatabase(customDbPath = null) {
     insertSetting.run('invoice_next_number', '1');
     insertSetting.run('thermal_printer_name', '');
     insertSetting.run('auto_print_receipt', 'true');
+    insertSetting.run('raast_fee_rate', '20'); // Rs. 20 per 1000
 
     // Default Categories
     const defaultCats = [

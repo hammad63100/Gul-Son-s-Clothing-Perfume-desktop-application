@@ -39,6 +39,7 @@ function settingsDB(db) {
           'products',
           'customers',
           'suppliers',
+          'raast_transactions',
           'audit_logs'
         ];
 
@@ -51,7 +52,7 @@ function settingsDB(db) {
         }
 
         try {
-          db.exec("DELETE FROM sqlite_sequence WHERE name IN ('products', 'sales', 'sale_items', 'expenses', 'customers', 'suppliers', 'returns', 'purchase_returns', 'stock_adjustments', 'customer_payments', 'audit_logs');");
+          db.exec("DELETE FROM sqlite_sequence WHERE name IN ('products', 'sales', 'sale_items', 'expenses', 'customers', 'suppliers', 'returns', 'purchase_returns', 'stock_adjustments', 'customer_payments', 'raast_transactions', 'audit_logs');");
         } catch (e) {}
 
         try {

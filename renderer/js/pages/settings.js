@@ -670,7 +670,7 @@ window.SettingsPage = {
 
           <h4 style="font-size:var(--text-sm); font-weight:700; color:var(--color-text-primary); margin-bottom:0;">Records Found in Backup:</h4>
           
-          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:var(--space-3);">
+          <div style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:var(--space-3);">
             <div style="background:var(--color-bg-card); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:var(--space-3); text-align:center;">
               <div style="font-size:var(--text-xl); font-weight:800; color:var(--color-accent);">${formatNum(stats.products)}</div>
               <div style="font-size:var(--text-xs); color:var(--color-text-secondary); margin-top:2px;">Products / Stock</div>
@@ -684,8 +684,16 @@ window.SettingsPage = {
               <div style="font-size:var(--text-xs); color:var(--color-text-secondary); margin-top:2px;">Expenses Logged</div>
             </div>
             <div style="background:var(--color-bg-card); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:var(--space-3); text-align:center;">
+              <div style="font-size:var(--text-xl); font-weight:800; color:#7c3aed;">${formatNum(stats.raast_transactions)}</div>
+              <div style="font-size:var(--text-xs); color:var(--color-text-secondary); margin-top:2px;">Raast & Bills</div>
+            </div>
+            <div style="background:var(--color-bg-card); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:var(--space-3); text-align:center;">
               <div style="font-size:var(--text-xl); font-weight:800; color:var(--color-text-primary);">${formatNum(stats.customers)}</div>
               <div style="font-size:var(--text-xs); color:var(--color-text-secondary); margin-top:2px;">Customers</div>
+            </div>
+            <div style="background:var(--color-bg-card); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:var(--space-3); text-align:center;">
+              <div style="font-size:var(--text-xl); font-weight:800; color:var(--color-text-primary);">${formatNum(stats.customer_payments)}</div>
+              <div style="font-size:var(--text-xs); color:var(--color-text-secondary); margin-top:2px;">Khata Payments</div>
             </div>
             <div style="background:var(--color-bg-card); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:var(--space-3); text-align:center;">
               <div style="font-size:var(--text-xl); font-weight:800; color:var(--color-text-primary);">${formatNum(stats.suppliers)}</div>

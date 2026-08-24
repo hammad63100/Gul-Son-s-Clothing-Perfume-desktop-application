@@ -17,6 +17,7 @@ const ALL_TABLES = [
   'customer_payments',
   'returns',
   'stock_adjustments',
+  'raast_transactions',
   'audit_logs'
 ];
 
@@ -241,6 +242,7 @@ async function exportAllToExcel(db, filePath) {
   summarySheet.addRow(['Total Registered Suppliers', countQuery('suppliers')]);
   summarySheet.addRow(['Total Sales Returns', countQuery('returns')]);
   summarySheet.addRow(['Total Stock Adjustments', countQuery('stock_adjustments')]);
+  summarySheet.addRow(['Total Raast & Utility Bills', countQuery('raast_transactions')]);
   summarySheet.addRow(['Total Categories', countQuery('categories')]);
   summarySheet.addRow(['Total Brands', countQuery('brands')]);
   summarySheet.addRow(['Total Fragrance Types', countQuery('fragrance_types')]);
@@ -294,10 +296,11 @@ async function exportAllToExcel(db, filePath) {
 
   // 5. Expenses Sheet
   const expensesSheet = workbook.addWorksheet('Expenses');
-  applyHeader(expensesSheet, ['ID', 'Expense Title', 'Category', 'Amount', 'Payment Method', 'Expense Date', 'Description', 'Created Date']);
+  applyHeader(expensesSheet, ['ID', 'Expense Type', 'Expense Title', 'Category', 'Amount', 'Payment Method', 'Expense Date', 'Description', 'Created Date']);
   const expensesData = db.prepare('SELECT * FROM expenses ORDER BY id ASC').all();
   for (const e of expensesData) {
-    expensesSheet.addRow([e.id, e.title, e.category, e.amount, e.payment_method, e.date, e.description || '', e.created_at]);
+    const typeLabel = e.expense_type === 'home' ? 'Home' : 'Shop';
+    expensesSheet.addRow([e.id, typeLabel, e.title, e.category, e.amount, e.payment_method, e.date, e.description || '', e.created_at]);
   }
   expensesSheet.columns.forEach(col => { col.width = 16; });
 
@@ -358,7 +361,26 @@ async function exportAllToExcel(db, filePath) {
   } catch (e) {}
   stockAdjSheet.columns.forEach(col => { col.width = 16; });
 
-  // 11. Categories Sheet
+  // 11. Raast & Utility Bills Sheet
+  const raastSheet = workbook.addWorksheet('Raast & Utility Bills');
+  applyHeader(raastSheet, ['ID', 'Slip No', 'Type', 'Amount', 'Commission Fee (Profit)', 'Total Handled', 'Created Date']);
+  try {
+    const raastData = db.prepare('SELECT * FROM raast_transactions ORDER BY id ASC').all();
+    for (const r of raastData) {
+      raastSheet.addRow([
+        r.id,
+        'RAAST-' + String(r.id).padStart(5, '0'),
+        r.transaction_type,
+        r.amount,
+        r.fee_amount,
+        r.total_collected || (r.amount + r.fee_amount),
+        r.created_at
+      ]);
+    }
+  } catch (e) {}
+  raastSheet.columns.forEach(col => { col.width = 18; });
+
+  // 12. Categories Sheet
   const catsSheet = workbook.addWorksheet('Categories');
   applyHeader(catsSheet, ['ID', 'Category Name', 'Type / Department', 'Created Date']);
   try {
@@ -369,7 +391,7 @@ async function exportAllToExcel(db, filePath) {
   } catch (e) {}
   catsSheet.columns.forEach(col => { col.width = 16; });
 
-  // 12. Brands Sheet
+  // 13. Brands Sheet
   const brandsSheet = workbook.addWorksheet('Brands');
   applyHeader(brandsSheet, ['ID', 'Brand Name', 'Category', 'Created Date']);
   try {
@@ -380,7 +402,7 @@ async function exportAllToExcel(db, filePath) {
   } catch (e) {}
   brandsSheet.columns.forEach(col => { col.width = 16; });
 
-  // 13. Fragrance Types Sheet
+  // 14. Fragrance Types Sheet
   const fragSheet = workbook.addWorksheet('Fragrance Types');
   applyHeader(fragSheet, ['ID', 'Type Name', 'Created Date']);
   try {
@@ -391,7 +413,7 @@ async function exportAllToExcel(db, filePath) {
   } catch (e) {}
   fragSheet.columns.forEach(col => { col.width = 16; });
 
-  // 14. Audit Logs Sheet
+  // 15. Audit Logs Sheet
   const auditSheet = workbook.addWorksheet('Audit Logs');
   applyHeader(auditSheet, ['ID', 'User', 'Action', 'Details', 'Timestamp']);
   try {
@@ -402,7 +424,7 @@ async function exportAllToExcel(db, filePath) {
   } catch (e) {}
   auditSheet.columns.forEach(col => { col.width = 20; });
 
-  // 15. Settings Sheet
+  // 16. Settings Sheet
   const setSheet = workbook.addWorksheet('Shop Settings');
   applyHeader(setSheet, ['Key', 'Value']);
   try {
@@ -580,6 +602,7 @@ async function restoreDatabase(db, filePath) {
         'products',
         'customers',
         'suppliers',
+        'raast_transactions',
         'fragrance_types',
         'brands',
         'categories',

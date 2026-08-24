@@ -283,3 +283,239 @@
   align-items: center;
   justify-content: center;
 }
+
+/* ─── Raast ATM Smart Cards ─── */
+.atm-card-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+@media (max-width: 1200px) {
+  .atm-card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .atm-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.atm-card {
+  position: relative;
+  border-radius: 18px;
+  padding: 16px 18px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 175px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent;
+}
+
+.atm-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 32px -4px rgba(0, 0, 0, 0.12), 0 6px 12px -2px rgba(0, 0, 0, 0.05);
+}
+
+.atm-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 55%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Theme 1: Sapphire Blue (Total Transactions) */
+.atm-card.blue {
+  background: linear-gradient(135deg, #f0f7ff 0%, #e0effe 45%, #bae0fd 100%);
+  border-color: #93c5fd;
+  color: #1e3a8a;
+}
+.atm-card.blue .atm-title { color: #1e40af; }
+.atm-card.blue .atm-value { color: #1e3a8a; }
+.atm-card.blue .atm-badge { background: #2563eb; color: #ffffff; }
+.atm-card.blue .atm-sub { color: #1d4ed8; }
+.atm-card.blue .atm-dots { color: #3b82f6; }
+
+/* Theme 2: Emerald Green (Cash Deposits) */
+.atm-card.green {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 45%, #bbf7d0 100%);
+  border-color: #86efac;
+  color: #065f46;
+}
+.atm-card.green .atm-title { color: #047857; }
+.atm-card.green .atm-value { color: #065f46; }
+.atm-card.green .atm-badge { background: #059669; color: #ffffff; }
+.atm-card.green .atm-sub { color: #047857; }
+.atm-card.green .atm-dots { color: #10b981; }
+
+/* Theme 3: Amber Sunset (Cash Withdrawals) */
+.atm-card.amber {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 45%, #fde68a 100%);
+  border-color: #fcd34d;
+  color: #92400e;
+}
+.atm-card.amber .atm-title { color: #b45309; }
+.atm-card.amber .atm-value { color: #92400e; }
+.atm-card.amber .atm-badge { background: #d97706; color: #ffffff; }
+.atm-card.amber .atm-sub { color: #b45309; }
+.atm-card.amber .atm-dots { color: #f59e0b; }
+
+/* Theme 4: Purple (Utility Bills) */
+.atm-card.purple {
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 45%, #ddd6fe 100%);
+  border-color: #c4b5fd;
+  color: #5b21b6;
+}
+.atm-card.purple .atm-title { color: #6d28d9; }
+.atm-card.purple .atm-value { color: #5b21b6; }
+.atm-card.purple .atm-badge { background: #7c3aed; color: #ffffff; }
+.atm-card.purple .atm-sub { color: #6d28d9; }
+.atm-card.purple .atm-dots { color: #a78bfa; }
+
+/* Theme 5: Gold Diamond (Total Benefit / Profit) */
+.atm-card.gold {
+  background: linear-gradient(135deg, #fefce8 0%, #fef08a 45%, #fde047 100%);
+  border-color: #eab308;
+  color: #713f12;
+}
+.atm-card.gold .atm-title { color: #854d0e; }
+.atm-card.gold .atm-value { color: #713f12; }
+.atm-card.gold .atm-badge { background: #ca8a04; color: #ffffff; }
+.atm-card.gold .atm-sub { color: #854d0e; }
+.atm-card.gold .atm-dots { color: #d97706; }
+
+.atm-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 2;
+}
+
+.atm-brand-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.atm-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.atm-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.atm-middle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 0 4px 0;
+  z-index: 2;
+}
+
+.emv-chip {
+  width: 36px;
+  height: 26px;
+  background: linear-gradient(135deg, #fbbf24 0%, #d97706 50%, #f59e0b 100%);
+  border-radius: 5px;
+  border: 1px solid #b45309;
+  position: relative;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.6), 0 2px 4px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emv-chip::before {
+  content: '';
+  position: absolute;
+  width: 22px;
+  height: 14px;
+  border: 1px solid rgba(180, 83, 9, 0.6);
+  border-radius: 3px;
+}
+
+.emv-chip::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 1px;
+  background: rgba(180, 83, 9, 0.6);
+}
+
+.contactless-wave {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.7;
+}
+
+.atm-dots {
+  font-family: 'Consolas', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  font-weight: 700;
+}
+
+.atm-value-group {
+  margin: 4px 0 6px 0;
+  z-index: 2;
+}
+
+.atm-value-label {
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.75;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.atm-value {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -0.3px;
+}
+
+.atm-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px dashed rgba(0, 0, 0, 0.12);
+  padding-top: 6px;
+  margin-top: 2px;
+  z-index: 2;
+}
+
+.atm-holder {
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.8;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.atm-sub {
+  font-size: 11px;
+  font-weight: 800;
+}

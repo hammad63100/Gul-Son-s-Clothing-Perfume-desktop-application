@@ -391,6 +391,130 @@ function generateTestReceiptHTML(settings = {}) {
 </html>`;
 }
 
+/**
+ * Raast / Digital Transfer Receipt Generator for 80mm Thermal Printers
+ */
+function generateRaastReceiptHTML(trx, settings = {}) {
+  const shopName = settings.shop_name || "Gul Son's";
+  const shopAddress = settings.shop_address || '';
+  const shopPhone = settings.shop_phone || '';
+  const currency = settings.currency_symbol || 'Rs.';
+
+  const isDeposit = trx.transaction_type === 'Cash Deposit';
+  const isBill = trx.transaction_type === 'Bill Payment';
+  let typeLabel = 'CASH WITHDRAWAL (CASH OUT)';
+  let icon = '📤';
+  if (isDeposit) {
+    typeLabel = 'CASH DEPOSIT (SEND MONEY)';
+    icon = '📥';
+  } else if (isBill) {
+    typeLabel = `UTILITY BILL (${escapeHtml(trx.bill_type || 'BILL PAYMENT').toUpperCase()})`;
+    icon = '🧾';
+  }
+
+  const createdAt = trx.created_at
+    ? new Date(trx.created_at).toLocaleString('en-PK', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: true
+      })
+    : new Date().toLocaleString('en-PK', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: true
+      });
+
+  const slipNo = 'RAAST-' + String(trx.id || 0).padStart(6, '0');
+  const amount = Number(trx.amount || 0);
+  const fee = Number(trx.fee_amount || 0);
+  const total = (isDeposit || isBill) ? (amount + fee) : amount;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Raast Receipt ${slipNo}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  @page { size: 80mm auto; margin: 0; }
+  html, body {
+    width: 80mm; margin: 0; padding: 0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 11px; line-height: 1.3; color: #000; background: #fff;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .receipt { width: 80mm; padding: 4mm 3mm 6mm 3mm; }
+  .header { text-align: center; margin-bottom: 3mm; }
+  .shop-name { font-size: 16px; font-weight: 900; letter-spacing: 0.5px; }
+  .shop-meta { font-size: 10px; color: #333; margin-top: 1px; }
+  .divider { border: none; border-top: 1px dashed #000; margin: 2mm 0; }
+  .double-divider { border: none; border-top: 1px solid #000; border-bottom: 1px solid #000; height: 3px; margin: 2mm 0; }
+  .badge { text-align: center; font-weight: 900; font-size: 12px; margin: 1.5mm 0; padding: 1mm 0; border: 1px solid #000; }
+  .info-row { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 1mm; }
+  .info-label { color: #444; }
+  .info-val { font-weight: 700; text-align: right; }
+  .amount-box { margin: 2mm 0; padding: 2mm; border: 1px solid #000; text-align: center; }
+  .amount-title { font-size: 11px; font-weight: 700; }
+  .amount-val { font-size: 18px; font-weight: 900; margin-top: 1mm; }
+  .footer { text-align: center; font-size: 9px; margin-top: 3mm; color: #555; }
+  @media print { html, body { width: 80mm; margin: 0 !important; padding: 0 !important; } }
+</style>
+</head>
+<body>
+<div class="receipt">
+  <div class="header">
+    <div class="shop-name">${escapeHtml(shopName)}</div>
+    ${shopAddress ? `<div class="shop-meta">${escapeHtml(shopAddress)}</div>` : ''}
+    ${shopPhone ? `<div class="shop-meta">Tel: ${escapeHtml(shopPhone)}</div>` : ''}
+  </div>
+
+  <div class="double-divider"></div>
+  <div class="badge">${icon} ${typeLabel}</div>
+  <div class="double-divider"></div>
+
+  <div class="info-row">
+    <span class="info-label">Slip #:</span>
+    <span class="info-val">${slipNo}</span>
+  </div>
+  <div class="info-row">
+    <span class="info-label">Date:</span>
+    <span class="info-val">${escapeHtml(createdAt)}</span>
+  </div>
+  <div class="info-row">
+    <span class="info-label">Service Type:</span>
+    <span class="info-val">${escapeHtml(trx.transaction_type)}</span>
+  </div>
+
+  <hr class="divider">
+
+  <div class="amount-box">
+    <div class="amount-title">${isBill ? 'Bill Amount' : (isDeposit ? 'Deposit Amount' : 'Withdrawal Amount')}</div>
+    <div class="amount-val">${currency} ${formatNum(amount)}</div>
+  </div>
+
+  <div class="info-row">
+    <span class="info-label">Commission Fee / Charge:</span>
+    <span class="info-val">${currency} ${formatNum(fee)}</span>
+  </div>
+  <div class="info-row" style="font-size:12px; font-weight:900; margin-top:1mm;">
+    <span class="info-label" style="font-weight:900; color:#000;">Total ${(isDeposit || isBill) ? 'Collected' : 'Handed Out'}:</span>
+    <span class="info-val">${currency} ${formatNum(total)}</span>
+  </div>
+
+  <hr class="divider">
+  <div class="info-row">
+    <span class="info-label">Status:</span>
+    <span class="info-val">✅ Completed</span>
+  </div>
+
+  <div class="footer">
+    <div>Thank you for using our digital service!</div>
+    <div style="margin-top:1mm;">Computer Generated Customer Slip</div>
+    <div style="font-size:8px; color:#888; margin-top:1mm;">Gul Son's Desktop POS</div>
+  </div>
+</div>
+</body>
+</html>`;
+}
+
 /* ─── Utilities ─── */
 
 function escapeHtml(str) {
@@ -407,4 +531,4 @@ function formatNum(num) {
   return Number(num || 0).toLocaleString('en-PK');
 }
 
-module.exports = { generateReceiptHTML, generateTestReceiptHTML };
+module.exports = { generateReceiptHTML, generateTestReceiptHTML, generateRaastReceiptHTML };

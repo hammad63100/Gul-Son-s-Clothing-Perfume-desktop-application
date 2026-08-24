@@ -9,7 +9,7 @@
  */
 
 const { BrowserWindow } = require('electron');
-const { generateReceiptHTML, generateTestReceiptHTML } = require('./receipt-template');
+const { generateReceiptHTML, generateTestReceiptHTML, generateRaastReceiptHTML } = require('./receipt-template');
 
 /**
  * Print a receipt silently to the configured thermal printer.
@@ -21,6 +21,14 @@ const { generateReceiptHTML, generateTestReceiptHTML } = require('./receipt-temp
  */
 async function printReceipt(saleData, settings, printerName) {
   const html = generateReceiptHTML(saleData, settings);
+  return await printHTML(html, printerName);
+}
+
+/**
+ * Print a Raast / digital transaction slip silently to the configured thermal printer.
+ */
+async function printRaastReceipt(raastData, settings, printerName) {
+  const html = generateRaastReceiptHTML(raastData, settings);
   return await printHTML(html, printerName);
 }
 
@@ -184,4 +192,4 @@ function printHTML(html, printerName) {
   });
 }
 
-module.exports = { printReceipt, printTestPage, getAvailablePrinters };
+module.exports = { printReceipt, printRaastReceipt, printTestPage, getAvailablePrinters };

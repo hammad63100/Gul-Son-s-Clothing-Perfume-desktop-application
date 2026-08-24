@@ -142,6 +142,10 @@ window.app = {
         FinancePage.switchTab('cashbook');
         break;
 
+      case 'raast':
+        await RaastPage.render(mainContent);
+        break;
+
       case 'backup':
         await SettingsPage.render(mainContent);
         break;
