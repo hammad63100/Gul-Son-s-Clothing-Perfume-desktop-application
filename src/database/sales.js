@@ -153,11 +153,21 @@ function salesDB(db) {
     getAll(filters = {}) {
       let query = `
         SELECT s.*, 
-               (SELECT COUNT(id) FROM sale_items WHERE sale_id = s.id) as item_count 
+               (SELECT COUNT(id) FROM sale_items WHERE sale_id = s.id) as item_count,
+               (SELECT COALESCE(SUM(quantity), 0) FROM sale_items WHERE sale_id = s.id) as total_sold_qty,
+               (SELECT COALESCE(SUM(quantity), 0) FROM returns WHERE sale_id = s.id) as total_returned_qty
         FROM sales s
       `;
       const params = [];
       const conditions = [];
+
+      // Filter out fully returned sales by default (unless explicitly asked to include them)
+      if (filters.includeFullyReturned !== true) {
+        conditions.push(`(
+          (SELECT COALESCE(SUM(quantity), 0) FROM returns WHERE sale_id = s.id) < (SELECT COALESCE(SUM(quantity), 0) FROM sale_items WHERE sale_id = s.id)
+          OR (SELECT COUNT(id) FROM sale_items WHERE sale_id = s.id) = 0
+        )`);
+      }
 
       if (filters.startDate) {
         conditions.push('s.created_at >= ?');
@@ -228,16 +238,20 @@ function salesDB(db) {
       // Query 2: Profit calculation - separate query to avoid complex subquery nesting
       let total_profit = 0;
       try {
-        const saleIds = db.prepare(
-          "SELECT id FROM sales WHERE DATE(created_at) = DATE(?)"
+        const salesRows = db.prepare(
+          "SELECT id, discount_amount FROM sales WHERE DATE(created_at) = DATE(?)"
         ).all(dateStr);
         
-        if (saleIds && saleIds.length > 0) {
-          for (const s of saleIds) {
+        if (salesRows && salesRows.length > 0) {
+          for (const s of salesRows) {
             const profitRow = db.prepare(
               "SELECT COALESCE(SUM(quantity * (price_at_sale - purchase_price_at_sale)), 0) as p FROM sale_items WHERE sale_id = ?"
             ).get(s.id);
-            if (profitRow) total_profit += (profitRow.p || 0);
+            if (profitRow) {
+              const saleGrossProfit = profitRow.p || 0;
+              const saleNetProfit = Math.max(0, saleGrossProfit - (s.discount_amount || 0));
+              total_profit += saleNetProfit;
+            }
           }
         }
       } catch (e) {
@@ -257,12 +271,12 @@ function salesDB(db) {
       } catch (e) {}
       try {
         const retProfitRow = db.prepare(`
-          SELECT COALESCE(SUM(r.quantity * (si.price_at_sale - si.purchase_price_at_sale)), 0) as profit_returned
+          SELECT COALESCE(SUM(r.refund_amount - (r.quantity * si.purchase_price_at_sale)), 0) as profit_returned
           FROM returns r
           JOIN sale_items si ON si.sale_id = r.sale_id AND si.product_id = r.product_id
           WHERE DATE(r.created_at) = DATE(?)
         `).get(dateStr);
-        if (retProfitRow) returnProfitDeduction = retProfitRow.profit_returned || 0;
+        if (retProfitRow) returnProfitDeduction = Math.max(0, retProfitRow.profit_returned || 0);
       } catch (e) {}
 
       return {
@@ -293,16 +307,20 @@ function salesDB(db) {
       // Query 2: Monthly profit - separate calculation
       let total_profit = 0;
       try {
-        const saleIds = db.prepare(
-          "SELECT id FROM sales WHERE created_at LIKE ?"
+        const salesRows = db.prepare(
+          "SELECT id, discount_amount FROM sales WHERE created_at LIKE ?"
         ).all(monthPattern);
         
-        if (saleIds && saleIds.length > 0) {
-          for (const s of saleIds) {
+        if (salesRows && salesRows.length > 0) {
+          for (const s of salesRows) {
             const profitRow = db.prepare(
               "SELECT COALESCE(SUM(quantity * (price_at_sale - purchase_price_at_sale)), 0) as p FROM sale_items WHERE sale_id = ?"
             ).get(s.id);
-            if (profitRow) total_profit += (profitRow.p || 0);
+            if (profitRow) {
+              const saleGrossProfit = profitRow.p || 0;
+              const saleNetProfit = Math.max(0, saleGrossProfit - (s.discount_amount || 0));
+              total_profit += saleNetProfit;
+            }
           }
         }
       } catch (e) {
@@ -322,12 +340,12 @@ function salesDB(db) {
       } catch (e) {}
       try {
         const retProfitRow = db.prepare(`
-          SELECT COALESCE(SUM(r.quantity * (si.price_at_sale - si.purchase_price_at_sale)), 0) as profit_returned
+          SELECT COALESCE(SUM(r.refund_amount - (r.quantity * si.purchase_price_at_sale)), 0) as profit_returned
           FROM returns r
           JOIN sale_items si ON si.sale_id = r.sale_id AND si.product_id = r.product_id
           WHERE r.created_at LIKE ?
         `).get(monthPattern);
-        if (retProfitRow) returnProfitDeduction = retProfitRow.profit_returned || 0;
+        if (retProfitRow) returnProfitDeduction = Math.max(0, retProfitRow.profit_returned || 0);
       } catch (e) {}
 
       return {

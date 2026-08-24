@@ -3,7 +3,7 @@ function returnsDB(db) {
     process(saleId, productId, quantity, reason, customReason = null, refundType = 'Cash Refund') {
       const txn = db.transaction(() => {
         quantity = Number(quantity);
-        if (!Number.isInteger(quantity) || quantity <= 0) throw new Error('Return quantity must be a whole number greater than zero');
+        if (!Number.isFinite(quantity) || quantity <= 0) throw new Error('Return quantity must be greater than zero');
         const sale = db.prepare('SELECT * FROM sales WHERE id = ?').get(saleId);
         if (!sale) throw new Error('Sale not found');
 
@@ -11,13 +11,18 @@ function returnsDB(db) {
         if (!saleItem) throw new Error('Product not found in this sale');
 
         // Check return quantity limit
-        const alreadyReturned = db.prepare('SELECT COALESCE(SUM(quantity), 0) as qty FROM returns WHERE sale_id = ? AND product_id = ?').get(saleId, productId);
-        const maxReturnable = saleItem.quantity - alreadyReturned.qty;
-        if (quantity > maxReturnable) {
+        const alreadyReturned = db.prepare('SELECT COALESCE(SUM(quantity), 0) as qty, COALESCE(SUM(refund_amount), 0) as total_refund FROM returns WHERE sale_id = ? AND product_id = ?').get(saleId, productId);
+        const maxReturnable = saleItem.quantity - (alreadyReturned?.qty || 0);
+        if (quantity > (maxReturnable + 0.0001)) {
           throw new Error(`Cannot return ${quantity} items. Maximum returnable: ${maxReturnable}`);
         }
 
-        const refundAmount = saleItem.price_at_sale * quantity;
+        // Calculate effective price after invoice discount
+        // Net factor = total_amount / subtotal (accounts for discount and tax)
+        const effectiveRate = (sale.subtotal > 0)
+          ? (sale.total_amount / sale.subtotal)
+          : 1;
+        const refundAmount = Math.round(saleItem.price_at_sale * effectiveRate * quantity * 100) / 100;
         const finalReason = reason === 'Other' ? (customReason || 'Other') : (reason || 'No reason specified');
 
         // Insert return record
@@ -73,9 +78,9 @@ function returnsDB(db) {
         const alreadyReturned = db.prepare('SELECT COALESCE(SUM(quantity), 0) as qty FROM returns WHERE sale_id = ? AND product_id = ?').get(saleId, item.product_id);
         const maxReturnable = item.quantity - (alreadyReturned?.qty || 0);
 
-        if (maxReturnable > 0) {
-          this.process(saleId, item.product_id, maxReturnable, reason, customReason, refundType);
-          totalRefund += item.price_at_sale * maxReturnable;
+        if (maxReturnable > 0.0001) {
+          const res = this.process(saleId, item.product_id, maxReturnable, reason, customReason, refundType);
+          totalRefund += (res?.refund_amount || 0);
         }
       }
 

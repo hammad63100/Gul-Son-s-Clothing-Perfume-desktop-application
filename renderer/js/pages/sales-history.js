@@ -158,17 +158,42 @@ window.SalesHistoryPage = {
       const sale = await window.api.sales.get(saleId);
       if (!sale) return;
 
+      const returnsList = await window.api.returns.getAll();
+      const invoiceReturns = returnsList.filter(r => r.sale_id === sale.id);
+
+      const itemsWithReturnable = sale.items.map(item => {
+        const returnedQty = invoiceReturns
+          .filter(r => r.product_id === item.product_id)
+          .reduce((sum, r) => sum + Number(r.quantity), 0);
+        const returnableQty = Math.max(0, item.quantity - returnedQty);
+        return { ...item, returnableQty, returnedQty };
+      });
+
+      const hasAnyReturnable = itemsWithReturnable.some(i => i.returnableQty > 0.001);
       this.selectedInvoice = sale;
       const area = document.getElementById('return-invoice-items-area');
       if (!area) return;
 
       area.style.display = 'block';
+
+      if (!hasAnyReturnable) {
+        area.innerHTML = `
+          <div style="border-top:1px solid var(--color-border); padding-top:var(--space-3);">
+            <div class="empty-state" style="padding:20px; text-align:center;">
+              <p style="color:var(--color-warning); font-weight:600; font-size:var(--text-sm);">⚠️ All items in invoice ${sale.invoice_no} have already been fully returned.</p>
+              <p style="font-size:var(--text-xs); color:var(--color-text-muted);">Stock has already been restored to inventory.</p>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
       area.innerHTML = `
         <div style="border-top:1px solid var(--color-border); padding-top:var(--space-3);">
           <div class="flex-between" style="margin-bottom:var(--space-2);">
             <div>
               <h4 style="font-size:var(--text-base); color:var(--color-accent);">Invoice: ${sale.invoice_no}</h4>
-              <span style="font-size:11px; color:var(--color-text-muted);">Customer: ${sale.customer_name || 'Walk-in'} • Total: Rs. ${sale.total_amount.toLocaleString()}</span>
+              <span style="font-size:11px; color:var(--color-text-muted);">Customer: ${sale.customer_name || 'Walk-in'} • Subtotal: Rs. ${(sale.subtotal || 0).toLocaleString()} • Discount: Rs. ${(sale.discount_amount || 0).toLocaleString()} • Total: Rs. ${sale.total_amount.toLocaleString()}</span>
             </div>
             <button class="btn btn-danger btn-sm" onclick="SalesHistoryPage.confirmFullInvoiceReturn(${sale.id})">
               ↩️ Return Complete Invoice
@@ -183,22 +208,37 @@ window.SalesHistoryPage = {
                 <th>Product Name</th>
                 <th>Variant</th>
                 <th>Qty</th>
-                <th>Price</th>
+                <th>Original Price</th>
+                ${sale.discount_amount > 0 ? '<th>Net Refund Price</th>' : ''}
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              ${sale.items.map(item => `
-                <tr>
+              ${itemsWithReturnable.map(item => {
+                const effectivePrice = (sale.subtotal > 0) ? (item.price_at_sale * (sale.total_amount / sale.subtotal)) : item.price_at_sale;
+                const effPriceFormatted = Math.round(effectivePrice * 100) / 100;
+                const isReturned = item.returnableQty <= 0.001;
+                return `
+                <tr style="${isReturned ? 'opacity:0.6;' : ''}">
                   <td style="font-weight:600;">${item.product_name}</td>
                   <td>${item.product_size || '-'}</td>
-                  <td><span class="badge badge-info">${item.quantity} ${formatters.getProductUnit(item)}</span></td>
-                  <td>Rs. ${item.price_at_sale}</td>
                   <td>
-                    <button class="btn btn-primary btn-sm" style="padding:2px 8px;" onclick="SalesHistoryPage.openItemReturnModal(${sale.id}, ${item.product_id}, '${item.product_name.replace(/'/g, "\\'")}', ${item.quantity}, ${item.price_at_sale}, '${(item.product_size || '').replace(/'/g, "\\'")}')">Return</button>
+                    <span class="badge ${isReturned ? 'badge-danger' : 'badge-info'}">
+                      ${item.returnableQty} / ${item.quantity} ${formatters.getProductUnit(item)}
+                    </span>
+                  </td>
+                  <td>Rs. ${item.price_at_sale}</td>
+                  ${sale.discount_amount > 0 ? `<td style="color:var(--color-success); font-weight:600;">Rs. ${effPriceFormatted} <small style="font-size:10px; color:var(--color-text-muted);">(-${((1 - sale.total_amount / sale.subtotal) * 100).toFixed(1)}%)</small></td>` : ''}
+                  <td>
+                    ${isReturned ? `
+                      <span class="badge badge-secondary" style="font-size:10px;">Returned</span>
+                    ` : `
+                      <button class="btn btn-primary btn-sm" style="padding:2px 8px;" onclick="SalesHistoryPage.openItemReturnModal(${sale.id}, ${item.product_id}, '${item.product_name.replace(/'/g, "\\'")}', ${item.returnableQty}, ${item.price_at_sale}, '${(item.product_size || '').replace(/'/g, "\\'")}', ${effPriceFormatted})">Return</button>
+                    `}
                   </td>
                 </tr>
-              `).join('')}
+              `;
+              }).join('')}
             </tbody>
           </table>
         </div>
@@ -209,14 +249,31 @@ window.SalesHistoryPage = {
     }
   },
 
-  openItemReturnModal(saleId, productId, prodName, maxQty, price, size = '') {
+  openItemReturnModal(saleId, productId, prodName, maxQty, price, size = '', effectivePrice = null) {
     const unit = formatters.getProductUnit({ product_name: prodName, product_size: size });
+    const netRefundPerUnit = effectivePrice !== null ? effectivePrice : price;
     modal.show({
       title: `Process Return — ${prodName}`,
       bodyHTML: `
         <div class="form-group">
           <label class="form-label">Return Quantity (Max: ${maxQty} ${unit}) *</label>
-          <input type="number" class="form-input" id="ret-item-qty" value="1" min="1" max="${maxQty}" required>
+          <input type="number" step="any" class="form-input" id="ret-item-qty" value="1" min="0.01" max="${maxQty}" oninput="SalesHistoryPage.updateReturnPreview(${netRefundPerUnit})" required>
+        </div>
+
+        <div style="background:var(--color-bg-secondary); border-radius:var(--radius-sm); padding:var(--space-3); margin-top:var(--space-3); font-size:var(--text-xs);">
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span>Original Price:</span>
+            <span>Rs. ${price}</span>
+          </div>
+          ${price !== netRefundPerUnit ? `
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:var(--color-warning);">
+            <span>Discount Adjusted Price:</span>
+            <span>Rs. ${netRefundPerUnit} / ${unit}</span>
+          </div>` : ''}
+          <div style="display:flex; justify-content:space-between; font-weight:700; font-size:var(--text-sm); color:var(--color-accent); border-top:1px dashed var(--color-border); padding-top:4px; margin-top:4px;">
+            <span>Total Refund to Customer:</span>
+            <span id="ret-total-preview">Rs. ${netRefundPerUnit}</span>
+          </div>
         </div>
 
         <div class="form-group" style="margin-top:var(--space-3);">
@@ -252,6 +309,16 @@ window.SalesHistoryPage = {
     });
   },
 
+  updateReturnPreview(unitRefund) {
+    const qtyInput = document.getElementById('ret-item-qty');
+    const preview = document.getElementById('ret-total-preview');
+    if (qtyInput && preview) {
+      const q = parseFloat(qtyInput.value) || 0;
+      const total = Math.round(q * unitRefund * 100) / 100;
+      preview.textContent = `Rs. ${total.toLocaleString()}`;
+    }
+  },
+
   onReasonChange(val) {
     const group = document.getElementById('ret-custom-reason-group');
     if (group) {
@@ -260,7 +327,7 @@ window.SalesHistoryPage = {
   },
 
   async submitItemReturn(saleId, productId) {
-    const qty = parseInt(document.getElementById('ret-item-qty').value) || 1;
+    const qty = parseFloat(document.getElementById('ret-item-qty').value) || 1;
     const reason = document.getElementById('ret-item-reason').value;
     const customReason = document.getElementById('ret-item-custom-reason')?.value.trim() || null;
     const refundType = document.getElementById('ret-item-type').value;

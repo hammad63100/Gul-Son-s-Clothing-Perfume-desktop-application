@@ -209,13 +209,18 @@ function registerHandlers(db, ipcMain) {
     const sales = db.prepare('SELECT COALESCE(SUM(total_amount), 0) AS total FROM sales WHERE created_at >= ? AND created_at <= ?').get(start, end).total;
     const refunds = db.prepare('SELECT COALESCE(SUM(refund_amount), 0) AS total FROM returns WHERE created_at >= ? AND created_at <= ?').get(start, end).total;
     const expenseTotal = db.prepare('SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE date >= ? AND date <= ?').get(start.slice(0, 10), end.slice(0, 10)).total;
-    const salesProfit = db.prepare(`SELECT COALESCE(SUM(si.quantity * (si.price_at_sale - si.purchase_price_at_sale)), 0) AS total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE s.created_at >= ? AND s.created_at <= ?`).get(start, end).total;
-    const returnedProfit = db.prepare(`SELECT COALESCE(SUM(r.quantity * (si.price_at_sale - si.purchase_price_at_sale)), 0) AS total FROM returns r JOIN sale_items si ON si.sale_id = r.sale_id AND si.product_id = r.product_id WHERE r.created_at >= ? AND r.created_at <= ?`).get(start, end).total;
+    const salesRows = db.prepare('SELECT id, discount_amount FROM sales WHERE created_at >= ? AND created_at <= ?').all(start, end);
+    let salesProfit = 0;
+    for (const s of salesRows) {
+      const pRow = db.prepare('SELECT COALESCE(SUM(quantity * (price_at_sale - purchase_price_at_sale)), 0) as p FROM sale_items WHERE sale_id = ?').get(s.id);
+      if (pRow) salesProfit += Math.max(0, (pRow.p || 0) - (s.discount_amount || 0));
+    }
+    const returnedProfit = db.prepare(`SELECT COALESCE(SUM(r.refund_amount - (r.quantity * si.purchase_price_at_sale)), 0) AS total FROM returns r JOIN sale_items si ON si.sale_id = r.sale_id AND si.product_id = r.product_id WHERE r.created_at >= ? AND r.created_at <= ?`).get(start, end).total;
     const income = Number(sales) - Number(refunds);
     return {
       period: monthly ? 'monthly' : 'daily', value: selected, grossIncome: Number(sales), refunds: Number(refunds), expenses: Number(expenseTotal),
       income, outcome: Number(refunds) + Number(expenseTotal), netCashFlow: income - Number(expenseTotal),
-      operatingProfit: Number(salesProfit) - Number(returnedProfit) - Number(expenseTotal), currency: settings.getValue('currency_symbol') || 'Rs.',
+      operatingProfit: Math.max(0, Number(salesProfit) - Math.max(0, Number(returnedProfit)) - Number(expenseTotal)), currency: settings.getValue('currency_symbol') || 'Rs.',
     };
   });
 

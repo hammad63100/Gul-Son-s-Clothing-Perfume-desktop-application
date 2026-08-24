@@ -44,6 +44,11 @@ function customersDB(db) {
                 FROM sale_items si WHERE si.sale_id = s.id) as profit
         FROM sales s 
         WHERE ${matchClause}
+        AND (
+          (SELECT COALESCE(SUM(quantity), 0) FROM returns WHERE sale_id = s.id) < 
+          (SELECT COALESCE(SUM(quantity), 0) FROM sale_items WHERE sale_id = s.id)
+          OR (SELECT COUNT(id) FROM sale_items WHERE sale_id = s.id) = 0
+        )
         ORDER BY s.created_at DESC
       `;
       customer.purchases = db.prepare(salesQuery).all(...matchParams);

@@ -1,4 +1,5 @@
 const assert = require('assert');
+const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const { initDatabase } = require('../src/database/init');
@@ -14,8 +15,9 @@ const {
 async function runTest() {
   console.log('--- Starting Backup & Restore Automation Test ---');
 
-  const testDbDir = path.join(__dirname, 'scratch_test_db');
-  if (!fs.existsSync(testDbDir)) fs.mkdirSync(testDbDir, { recursive: true });
+  // Keep generated databases and exports outside the repository so running the
+  // test never changes tracked fixtures or leaves generated files behind.
+  const testDbDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gulsons-backup-test-'));
 
   const testDbPath = path.join(testDbDir, 'test_gulsons.db');
   if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
@@ -113,9 +115,8 @@ async function runTest() {
   console.log('9. SQLite .db Restore verified');
 
   // Cleanup test artifacts
-  try {
-    fs.rmSync(testDbDir, { recursive: true, force: true });
-  } catch (e) {}
+  db.close();
+  fs.rmSync(testDbDir, { recursive: true, force: true });
 
   console.log('\n--- ALL BACKUP & RESTORE TESTS PASSED SUCCESSFULLY! ---');
 }
