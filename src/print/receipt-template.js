@@ -1,9 +1,9 @@
 /**
- * Receipt HTML Template Generator for 80mm Thermal Printers (BT-801)
+ * Receipt HTML Template Generator for 80mm Thermal Printers (BT-801 & ESC/POS)
  *
  * Generates a complete self-contained HTML document styled for direct thermal
- * printing via Electron's webContents.print(). The layout is 80mm wide with
- * auto height — paper length matches content exactly, eliminating blank space.
+ * printing via Electron's webContents.print(). High-contrast pure black styling
+ * ensures crisp, dark printing on all thermal heads.
  */
 
 function generateReceiptHTML(saleData, settings = {}) {
@@ -29,8 +29,8 @@ function generateReceiptHTML(saleData, settings = {}) {
 
   // Build item rows
   const itemRows = items.map((item, idx) => {
-    const name = item.product_name || 'Unknown';
-    const variant = item.product_size || '';
+    const name = item.product_name || 'Item';
+    const variant = [item.product_size, item.product_color].filter(Boolean).join(' / ');
     const qtyNum = Number(item.quantity || 1);
     const qtyFormatted = Number.isInteger(qtyNum) ? qtyNum.toString() : parseFloat(qtyNum.toFixed(2)).toString();
     const qtyUnitStr = item.quantity_unit && !['pcs', 'Items', 'items'].includes(item.quantity_unit) ? ` ${item.quantity_unit}` : '';
@@ -41,9 +41,10 @@ function generateReceiptHTML(saleData, settings = {}) {
       <tr>
         <td class="col-num">${idx + 1}</td>
         <td class="col-item">
-          ${escapeHtml(name)}${variant ? `<br><span class="variant">${escapeHtml(variant)}</span>` : ''}
+          <strong>${escapeHtml(name)}</strong>
+          ${variant ? `<br><span class="variant">${escapeHtml(variant)}</span>` : ''}
         </td>
-        <td class="col-qty">${qtyFormatted}${qtyUnitStr ? `<span style="font-size:9px;">${escapeHtml(qtyUnitStr)}</span>` : ''}</td>
+        <td class="col-qty">${qtyFormatted}${qtyUnitStr ? ` ${escapeHtml(qtyUnitStr)}` : ''}</td>
         <td class="col-price">${formatNum(price)}</td>
         <td class="col-total">${formatNum(lineTotal)}</td>
       </tr>
@@ -58,15 +59,15 @@ function generateReceiptHTML(saleData, settings = {}) {
 
   let totalsRows = `
     <tr>
-      <td>Subtotal</td>
+      <td>Subtotal:</td>
       <td>${currency} ${formatNum(subtotal)}</td>
     </tr>
   `;
 
   if (discountAmount > 0) {
     const discLabel = saleData.discount_type === 'percentage'
-      ? `Discount (${saleData.discount_value || 0}%)`
-      : 'Discount';
+      ? `Discount (${saleData.discount_value || 0}%):`
+      : 'Discount:';
     totalsRows += `
       <tr>
         <td>${discLabel}</td>
@@ -78,7 +79,7 @@ function generateReceiptHTML(saleData, settings = {}) {
   if (taxAmount > 0) {
     totalsRows += `
       <tr>
-        <td>Tax</td>
+        <td>Tax:</td>
         <td>${currency} ${formatNum(taxAmount)}</td>
       </tr>
     `;
@@ -86,20 +87,19 @@ function generateReceiptHTML(saleData, settings = {}) {
 
   // Customer section
   const customerSection = (customerName || customerPhone) ? `
-    <div class="section-divider"></div>
+    <div class="divider-dotted"></div>
     <div class="customer-info">
       ${customerName ? `<div>Customer: <strong>${escapeHtml(customerName)}</strong></div>` : ''}
-      ${customerPhone ? `<div>Phone: ${escapeHtml(customerPhone)}</div>` : ''}
+      ${customerPhone ? `<div>Phone: <strong>${escapeHtml(customerPhone)}</strong></div>` : ''}
     </div>
   ` : '';
 
-  const html = `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Receipt ${invoiceNo}</title>
 <style>
-  /* Reset — zero out everything for thermal printing */
   *, *::before, *::after {
     box-sizing: border-box;
     margin: 0;
@@ -107,26 +107,31 @@ function generateReceiptHTML(saleData, settings = {}) {
   }
 
   @page {
-    size: 80mm auto;
     margin: 0;
+    size: auto;
   }
 
   html, body {
-    width: 80mm;
-    margin: 0;
+    width: 100%;
+    max-width: 72mm;
+    margin: 0 auto;
     padding: 0;
-    font-family: 'Consolas', 'Courier New', 'Lucida Console', monospace;
-    font-size: 11px;
-    line-height: 1.3;
-    color: #000;
-    background: #fff;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    font-family: 'Segoe UI', Arial, -apple-system, sans-serif, 'Consolas', monospace;
+    font-size: 11.5px;
+    line-height: 1.35;
+    color: #000000 !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .receipt {
-    width: 80mm;
-    padding: 4mm 3mm 6mm 3mm;
+    width: 100%;
+    max-width: 72mm;
+    margin: 0 auto;
+    padding: 2mm 1mm 4mm 1mm;
+    background: #ffffff !important;
+    color: #000000 !important;
   }
 
   /* ─── Shop Header ─── */
@@ -135,30 +140,38 @@ function generateReceiptHTML(saleData, settings = {}) {
     padding-bottom: 2mm;
   }
   .shop-name {
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 900;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
     text-transform: uppercase;
+    color: #000000 !important;
     margin-bottom: 1mm;
   }
   .shop-detail {
     font-size: 10px;
-    color: #333;
+    font-weight: 600;
+    color: #000000 !important;
   }
 
   /* ─── Dividers ─── */
-  .divider {
+  .divider-solid {
     border: none;
-    border-top: 1px dashed #000;
+    border-top: 1.5px solid #000000;
     margin: 2mm 0;
   }
   .divider-double {
     border: none;
-    border-top: 2px solid #000;
+    border-top: 2.5px solid #000000;
     margin: 2mm 0;
   }
-  .section-divider {
-    border-top: 1px dotted #555;
+  .divider-dashed {
+    border: none;
+    border-top: 1px dashed #000000;
+    margin: 2mm 0;
+  }
+  .divider-dotted {
+    border: none;
+    border-top: 1px dotted #000000;
     margin: 1.5mm 0;
   }
 
@@ -166,12 +179,14 @@ function generateReceiptHTML(saleData, settings = {}) {
   .invoice-title {
     text-align: center;
     font-size: 13px;
-    font-weight: 800;
-    letter-spacing: 0.5px;
+    font-weight: 900;
+    letter-spacing: 1px;
     margin: 1mm 0;
+    color: #000000 !important;
   }
   .invoice-info {
-    font-size: 10px;
+    font-size: 10.5px;
+    color: #000000 !important;
   }
   .invoice-info div {
     display: flex;
@@ -181,27 +196,30 @@ function generateReceiptHTML(saleData, settings = {}) {
 
   /* ─── Customer Info ─── */
   .customer-info {
-    font-size: 10px;
+    font-size: 10.5px;
     padding: 1mm 0;
+    color: #000000 !important;
   }
   .customer-info div {
-    margin-bottom: 0.3mm;
+    margin-bottom: 0.5mm;
   }
 
   /* ─── Items Table ─── */
   .items-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 10px;
+    font-size: 10.5px;
     margin-top: 1mm;
+    color: #000000 !important;
   }
   .items-table thead th {
     text-align: left;
-    font-weight: 800;
-    font-size: 9px;
+    font-weight: 900;
+    font-size: 9.5px;
     padding: 1mm 0.5mm;
-    border-bottom: 1px solid #000;
+    border-bottom: 1.5px solid #000000;
     text-transform: uppercase;
+    color: #000000 !important;
   }
   .items-table thead th.col-qty,
   .items-table thead th.col-price,
@@ -211,17 +229,18 @@ function generateReceiptHTML(saleData, settings = {}) {
   .items-table tbody td {
     padding: 1mm 0.5mm;
     vertical-align: top;
-    border-bottom: 1px dotted #ccc;
+    border-bottom: 1px dashed #000000;
+    color: #000000 !important;
   }
-  .col-num { width: 6mm; text-align: center; }
+  .col-num { width: 5mm; text-align: center; }
   .col-item { }
-  .col-qty { width: 8mm; text-align: right; }
-  .col-price { width: 16mm; text-align: right; }
-  .col-total { width: 18mm; text-align: right; font-weight: 700; }
+  .col-qty { width: 8mm; text-align: right; font-weight: 700; }
+  .col-price { width: 14mm; text-align: right; }
+  .col-total { width: 16mm; text-align: right; font-weight: 800; }
   .variant {
-    font-size: 8px;
-    color: #555;
-    font-style: italic;
+    font-size: 9px;
+    font-weight: 600;
+    color: #000000 !important;
   }
 
   /* ─── Totals ─── */
@@ -229,40 +248,43 @@ function generateReceiptHTML(saleData, settings = {}) {
     width: 100%;
     font-size: 11px;
     margin-top: 1mm;
+    color: #000000 !important;
   }
   .totals-table td {
-    padding: 0.5mm 0;
+    padding: 0.6mm 0;
   }
   .totals-table td:last-child {
     text-align: right;
-    font-weight: 600;
+    font-weight: 700;
   }
   .grand-total-row {
-    font-size: 14px;
+    font-size: 14.5px;
     font-weight: 900;
-    border-top: 2px solid #000;
-    border-bottom: 2px solid #000;
+    border-top: 2px solid #000000;
+    border-bottom: 2px solid #000000;
     padding: 1.5mm 0 !important;
+    color: #000000 !important;
   }
 
   /* ─── Footer ─── */
   .footer {
     text-align: center;
-    font-size: 9px;
-    color: #333;
+    font-size: 9.5px;
+    font-weight: 600;
+    color: #000000 !important;
     padding-top: 2mm;
     line-height: 1.4;
   }
   .footer .thanks {
-    font-size: 11px;
-    font-weight: 700;
+    font-size: 11.5px;
+    font-weight: 800;
     margin-bottom: 1mm;
   }
 
-  /* ─── Print media — remove any browser chrome ─── */
   @media print {
     html, body {
-      width: 80mm;
+      width: 100% !important;
+      max-width: 72mm !important;
       margin: 0 !important;
       padding: 0 !important;
     }
@@ -287,14 +309,14 @@ function generateReceiptHTML(saleData, settings = {}) {
   <!-- Invoice Title & Info -->
   <div class="invoice-title">SALES INVOICE</div>
   <div class="invoice-info">
-    <div><span>Invoice #</span><span>${escapeHtml(invoiceNo)}</span></div>
-    <div><span>Date</span><span>${escapeHtml(createdAt)}</span></div>
-    <div><span>Payment</span><span>${escapeHtml(paymentMethod)}</span></div>
+    <div><span>Invoice #:</span><strong>${escapeHtml(invoiceNo)}</strong></div>
+    <div><span>Date:</span><span>${escapeHtml(createdAt)}</span></div>
+    <div><span>Payment:</span><strong>${escapeHtml(paymentMethod)}</strong></div>
   </div>
 
   ${customerSection}
 
-  <hr class="divider">
+  <hr class="divider-solid">
 
   <!-- Items Table -->
   <table class="items-table">
@@ -312,13 +334,13 @@ function generateReceiptHTML(saleData, settings = {}) {
     </tbody>
   </table>
 
-  <hr class="divider">
+  <hr class="divider-dashed">
 
   <!-- Totals -->
   <table class="totals-table">
     ${totalsRows}
     <tr>
-      <td class="grand-total-row">TOTAL</td>
+      <td class="grand-total-row">TOTAL:</td>
       <td class="grand-total-row">${currency} ${formatNum(totalAmount)}</td>
     </tr>
   </table>
@@ -327,16 +349,14 @@ function generateReceiptHTML(saleData, settings = {}) {
 
   <!-- Footer -->
   <div class="footer">
-    <div class="thanks">Thank you for shopping!</div>
-    <div>Visit us again at ${escapeHtml(shopName)}</div>
-    <div style="margin-top:1mm; font-size:8px; color:#888;">Powered by Gul Son's Shop Manager</div>
+    <div class="thanks">Thank you for your visit!</div>
+    <div>Goods once sold can be exchanged within 3 days with receipt</div>
+    <div style="margin-top:1mm; font-size:8.5px;">Gul Son's Clothing & Perfume</div>
   </div>
 
 </div>
 </body>
 </html>`;
-
-  return html;
 }
 
 /**
@@ -356,36 +376,36 @@ function generateTestReceiptHTML(settings = {}) {
 <title>Test Print</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  @page { size: 80mm auto; margin: 0; }
+  @page { margin: 0; size: auto; }
   html, body {
-    width: 80mm; margin: 0; padding: 0;
-    font-family: 'Consolas', 'Courier New', monospace;
-    font-size: 11px; line-height: 1.3; color: #000; background: #fff;
-    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    width: 100%; max-width: 72mm; margin: 0 auto; padding: 0;
+    font-family: 'Segoe UI', Arial, sans-serif, 'Consolas', monospace;
+    font-size: 11.5px; line-height: 1.35; color: #000000 !important; background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
   }
-  .receipt { width: 80mm; padding: 4mm 3mm 6mm 3mm; text-align: center; }
-  .title { font-size: 16px; font-weight: 900; margin-bottom: 2mm; }
-  .divider { border: none; border-top: 1px dashed #000; margin: 2mm 0; }
-  .line { font-size: 10px; margin-bottom: 1mm; }
-  .check { font-size: 24px; margin: 2mm 0; }
-  @media print { html, body { width: 80mm; margin: 0 !important; padding: 0 !important; } }
+  .receipt { width: 100%; max-width: 72mm; padding: 3mm 2mm 5mm 2mm; text-align: center; color: #000000 !important; }
+  .title { font-size: 16px; font-weight: 900; margin-bottom: 2mm; text-transform: uppercase; }
+  .divider { border: none; border-top: 1.5px solid #000000; margin: 2mm 0; }
+  .divider-dashed { border: none; border-top: 1px dashed #000000; margin: 2mm 0; }
+  .line { font-size: 10.5px; font-weight: 600; margin-bottom: 1mm; }
+  .check { font-size: 20px; font-weight: 900; margin: 2mm 0; }
+  @media print { html, body { width: 100% !important; margin: 0 !important; padding: 0 !important; } }
 </style>
 </head>
 <body>
 <div class="receipt">
   <div class="title">${escapeHtml(shopName)}</div>
   <hr class="divider">
-  <div class="check">✅</div>
-  <div class="line" style="font-size:13px; font-weight:700;">PRINTER TEST</div>
-  <div class="line">Connection Successful!</div>
-  <hr class="divider">
-  <div class="line">${escapeHtml(now)}</div>
-  <div class="line">80mm Thermal Printer</div>
+  <div class="check">[ TEST PRINT OK ]</div>
+  <div class="line" style="font-size:13px; font-weight:900;">PRINTER CONNECTION VERIFIED</div>
+  <div class="line">80mm Thermal Receipt Ready</div>
+  <hr class="divider-dashed">
+  <div class="line">Date: ${escapeHtml(now)}</div>
   <div class="line">================================</div>
-  <div class="line">ABCDEFGHIJKLMNOPQRSTUVWXYZ</div>
-  <div class="line">0123456789 Rs. 1,234,567</div>
+  <div class="line">1234567890 ABCDEFGHIJKLMNOPQRSTUVWXYZ</div>
+  <div class="line">Rs. 1,234,567.00 - Standard Test</div>
   <div class="line">================================</div>
-  <div class="line" style="margin-top:2mm; font-size:8px; color:#888;">Gul Son's Shop Manager</div>
+  <div class="line" style="margin-top:2mm; font-size:9px;">Gul Son's Shop Manager Desktop</div>
 </div>
 </body>
 </html>`;
@@ -403,13 +423,13 @@ function generateRaastReceiptHTML(trx, settings = {}) {
   const isDeposit = trx.transaction_type === 'Cash Deposit';
   const isBill = trx.transaction_type === 'Bill Payment';
   let typeLabel = 'CASH WITHDRAWAL (CASH OUT)';
-  let icon = '📤';
+  let icon = '[OUT]';
   if (isDeposit) {
     typeLabel = 'CASH DEPOSIT (SEND MONEY)';
-    icon = '📥';
+    icon = '[IN]';
   } else if (isBill) {
     typeLabel = `UTILITY BILL (${escapeHtml(trx.bill_type || 'BILL PAYMENT').toUpperCase()})`;
-    icon = '🧾';
+    icon = '[BILL]';
   }
 
   const createdAt = trx.created_at
@@ -434,28 +454,28 @@ function generateRaastReceiptHTML(trx, settings = {}) {
 <title>Raast Receipt ${slipNo}</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  @page { size: 80mm auto; margin: 0; }
+  @page { margin: 0; size: auto; }
   html, body {
-    width: 80mm; margin: 0; padding: 0;
-    font-family: 'Consolas', 'Courier New', monospace;
-    font-size: 11px; line-height: 1.3; color: #000; background: #fff;
-    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    width: 100%; max-width: 72mm; margin: 0 auto; padding: 0;
+    font-family: 'Segoe UI', Arial, sans-serif, 'Consolas', monospace;
+    font-size: 11.5px; line-height: 1.35; color: #000000 !important; background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
   }
-  .receipt { width: 80mm; padding: 4mm 3mm 6mm 3mm; }
-  .header { text-align: center; margin-bottom: 3mm; }
-  .shop-name { font-size: 16px; font-weight: 900; letter-spacing: 0.5px; }
-  .shop-meta { font-size: 10px; color: #333; margin-top: 1px; }
-  .divider { border: none; border-top: 1px dashed #000; margin: 2mm 0; }
-  .double-divider { border: none; border-top: 1px solid #000; border-bottom: 1px solid #000; height: 3px; margin: 2mm 0; }
-  .badge { text-align: center; font-weight: 900; font-size: 12px; margin: 1.5mm 0; padding: 1mm 0; border: 1px solid #000; }
-  .info-row { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 1mm; }
-  .info-label { color: #444; }
-  .info-val { font-weight: 700; text-align: right; }
-  .amount-box { margin: 2mm 0; padding: 2mm; border: 1px solid #000; text-align: center; }
+  .receipt { width: 100%; max-width: 72mm; padding: 2mm 1mm 4mm 1mm; color: #000000 !important; }
+  .header { text-align: center; margin-bottom: 2mm; }
+  .shop-name { font-size: 16px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
+  .shop-meta { font-size: 10px; font-weight: 600; margin-top: 1px; }
+  .divider { border: none; border-top: 1px dashed #000000; margin: 2mm 0; }
+  .double-divider { border: none; border-top: 2px solid #000000; margin: 2mm 0; }
+  .badge { text-align: center; font-weight: 900; font-size: 12px; margin: 1.5mm 0; padding: 1mm 0; border: 1.5px solid #000000; }
+  .info-row { display: flex; justify-content: space-between; font-size: 10.5px; margin-bottom: 1mm; }
+  .info-label { font-weight: 600; }
+  .info-val { font-weight: 800; text-align: right; }
+  .amount-box { margin: 2mm 0; padding: 2mm; border: 1.5px solid #000000; text-align: center; }
   .amount-title { font-size: 11px; font-weight: 700; }
-  .amount-val { font-size: 18px; font-weight: 900; margin-top: 1mm; }
-  .footer { text-align: center; font-size: 9px; margin-top: 3mm; color: #555; }
-  @media print { html, body { width: 80mm; margin: 0 !important; padding: 0 !important; } }
+  .amount-val { font-size: 17px; font-weight: 900; margin-top: 1mm; }
+  .footer { text-align: center; font-size: 9px; font-weight: 600; margin-top: 3mm; }
+  @media print { html, body { width: 100% !important; margin: 0 !important; padding: 0 !important; } }
 </style>
 </head>
 <body>
@@ -495,20 +515,20 @@ function generateRaastReceiptHTML(trx, settings = {}) {
     <span class="info-val">${currency} ${formatNum(fee)}</span>
   </div>
   <div class="info-row" style="font-size:12px; font-weight:900; margin-top:1mm;">
-    <span class="info-label" style="font-weight:900; color:#000;">Total ${(isDeposit || isBill) ? 'Collected' : 'Handed Out'}:</span>
+    <span class="info-label" style="font-weight:900;">Total ${(isDeposit || isBill) ? 'Collected' : 'Handed Out'}:</span>
     <span class="info-val">${currency} ${formatNum(total)}</span>
   </div>
 
   <hr class="divider">
   <div class="info-row">
     <span class="info-label">Status:</span>
-    <span class="info-val">✅ Completed</span>
+    <span class="info-val">[COMPLETED]</span>
   </div>
 
   <div class="footer">
     <div>Thank you for using our digital service!</div>
     <div style="margin-top:1mm;">Computer Generated Customer Slip</div>
-    <div style="font-size:8px; color:#888; margin-top:1mm;">Gul Son's Desktop POS</div>
+    <div style="font-size:8px; margin-top:1mm;">Gul Son's Desktop POS</div>
   </div>
 </div>
 </body>

@@ -5,7 +5,8 @@
  * directly to the configured thermal printer using Electron's
  * webContents.print() API. No Save dialog, no system print dialog.
  *
- * Designed for the BT-801 80mm Portable Mini Bluetooth Thermal Receipt Printer.
+ * Designed for the BT-801 80mm Portable Mini Bluetooth Thermal Receipt Printer
+ * and standard 80mm / 58mm ESC/POS thermal printers.
  */
 
 const { BrowserWindow } = require('electron');
@@ -101,15 +102,17 @@ function printHTML(html, printerName) {
     }, 30000);
 
     try {
-      // Create a hidden off-screen window for rendering the receipt
+      // Create an off-screen window for rendering the receipt.
+      // backgroundThrottling: false is CRITICAL to prevent Chromium from
+      // pausing paint/layout on hidden windows before print() is called.
       printWindow = new BrowserWindow({
         show: false,
-        width: 302,          // 80mm at 96 DPI ≈ 302px
-        height: 800,         // Tall enough for any receipt
+        width: 380,
+        height: 900,
         webPreferences: {
           nodeIntegration: false,
           contextIsolation: true,
-          // Disable features we don't need
+          backgroundThrottling: false,
           webgl: false,
           images: true,
         },
@@ -121,21 +124,18 @@ function printHTML(html, printerName) {
       printWindow.loadURL(dataUrl);
 
       printWindow.webContents.on('did-finish-load', () => {
-        // Small delay to ensure CSS/layout is fully computed before printing
+        // Delay to ensure CSS fonts, layouts, and frame rasterization are complete
         setTimeout(() => {
           if (settled) return;
 
           const printOptions = {
             silent: true,               // No system print dialog
-            printBackground: true,      // Print background colors/borders
+            printBackground: true,      // Print background colors and borders
+            color: false,               // Monochrome for thermal receipt printers
             margins: {
-              marginType: 'none',       // No extra margins — receipt CSS handles padding
+              marginType: 'none',       // No extra margins (CSS handles receipt padding)
             },
-            scaleFactor: 100,           // No scaling
-            pageSize: {
-              width: 80000,             // 80mm in microns
-              height: 297000,           // Max height in microns (auto-trimmed by content)
-            },
+            scaleFactor: 100,           // 100% scale
           };
 
           // If a specific printer is configured, target it
@@ -164,7 +164,7 @@ function printHTML(html, printerName) {
               ));
             }
           });
-        }, 300); // 300ms layout settling delay
+        }, 400); // 400ms layout settling delay
       });
 
       // Handle load errors
@@ -193,3 +193,4 @@ function printHTML(html, printerName) {
 }
 
 module.exports = { printReceipt, printRaastReceipt, printTestPage, getAvailablePrinters };
+
