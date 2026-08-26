@@ -184,8 +184,8 @@ window.SettingsPage = {
         <div class="card animate-fade-in" style="max-width:900px; margin:0 auto;">
           <div class="card-header">
             <div>
-              <h3 class="card-title">Restore System Data from Backup File</h3>
-              <p class="card-subtitle">Import your full records from a previous SQLite (.db) or Universal JSON (.json) backup file</p>
+              <h3 class="card-title">Import & Restore System Data</h3>
+              <p class="card-subtitle">Import your full records from a Master Excel (.xlsx), SQLite (.db), or Universal JSON (.json) backup file</p>
             </div>
           </div>
 
@@ -206,9 +206,9 @@ window.SettingsPage = {
             <!-- Upload / Select Box -->
             <div style="border:2px dashed var(--color-border); border-radius:var(--radius-lg); padding:var(--space-8); text-align:center; background:var(--color-bg-tertiary);">
               <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2" style="width:48px; height:48px; margin:0 auto var(--space-3);"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/><polyline points="16 16 12 12 8 16"/></svg>
-              <h3 style="font-size:var(--text-md); font-weight:700; color:var(--color-text-primary);">Select Backup File (.db, .sqlite, or .json)</h3>
+              <h3 style="font-size:var(--text-md); font-weight:700; color:var(--color-text-primary);">Select Backup / Master File (.xlsx, .db, or .json)</h3>
               <p style="font-size:var(--text-xs); color:var(--color-text-muted); max-width:450px; margin:var(--space-2) auto var(--space-4);">
-                Choose any previous backup taken on this computer or transferred from another computer.
+                Choose any Master Excel export (.xlsx), SQLite (.db), or JSON (.json) backup file from this PC or transferred from another computer.
               </p>
               <button class="btn btn-primary" onclick="SettingsPage.selectFileToRestore()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px; height:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>

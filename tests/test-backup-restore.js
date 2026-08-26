@@ -81,12 +81,27 @@ async function runTest() {
   assert.strictEqual(jsonInspection.stats.expenses >= 2, true);
   console.log('4. Backup inspection for JSON passed');
 
-  // 5. Test Excel Master Export
+  // 5. Test Excel Master Export & Inspection & Restore
   const excelExportPath = path.join(testDbDir, 'test_master_export.xlsx');
   const excelResult = await exportAllToExcel(db, excelExportPath);
   assert.strictEqual(excelResult.success, true);
   assert.strictEqual(fs.existsSync(excelExportPath), true);
   console.log('5. Excel Master Export succeeded');
+
+  const excelInspection = await inspectBackupFile(excelExportPath);
+  assert.strictEqual(excelInspection.valid, true);
+  assert.strictEqual(excelInspection.type, 'excel');
+  assert.strictEqual(excelInspection.stats.products >= 3, true);
+  assert.strictEqual(excelInspection.stats.expenses >= 2, true);
+  assert.strictEqual(excelInspection.stats.sales >= 1, true);
+  console.log('5b. Excel Master Backup inspection passed:', excelInspection.stats);
+
+  const restoreExcelResult = await restoreDatabase(db, excelExportPath);
+  assert.strictEqual(restoreExcelResult.success, true);
+  assert.strictEqual(restoreExcelResult.mode, 'excel');
+  const restoredFromExcelCount = db.prepare('SELECT count(*) as c FROM products').get().c;
+  assert.strictEqual(restoredFromExcelCount >= 3, true);
+  console.log(`5c. Excel Master Restore verified: ${restoredFromExcelCount} products restored from Excel`);
 
   // 6. Test SQLite Backup Creation
   const dbBackupResult = await backupDatabase(db, testDbDir);
@@ -118,7 +133,7 @@ async function runTest() {
   db.close();
   fs.rmSync(testDbDir, { recursive: true, force: true });
 
-  console.log('\n--- ALL BACKUP & RESTORE TESTS PASSED SUCCESSFULLY! ---');
+  console.log('\n--- ALL BACKUP & RESTORE TESTS (EXCEL, SQLITE, JSON) PASSED SUCCESSFULLY! ---');
 }
 
 runTest().catch(err => {

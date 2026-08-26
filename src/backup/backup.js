@@ -439,7 +439,313 @@ async function exportAllToExcel(db, filePath) {
   return { success: true, path: filePath };
 }
 
-// ─── 4. Inspect Backup File (.db or .json) ───
+// ─── Excel Helper Utilities ───
+
+function extractCellValue(cell) {
+  if (!cell || cell.value === null || cell.value === undefined) return null;
+  let val = cell.value;
+  if (typeof val === 'object') {
+    if (val instanceof Date) {
+      return val;
+    }
+    if (val.result !== undefined) {
+      val = val.result;
+    } else if (val.richText && Array.isArray(val.richText)) {
+      val = val.richText.map(t => t.text || '').join('');
+    } else if (val.text !== undefined) {
+      val = val.text;
+    }
+  }
+  if (typeof val === 'string') {
+    return val.trim();
+  }
+  return val;
+}
+
+function resolveSheetToTable(sheetName) {
+  if (!sheetName) return null;
+  const clean = sheetName.trim().toLowerCase();
+  
+  if (clean.includes('product') || clean.includes('stock')) return 'products';
+  if (clean.includes('sale item') || clean.includes('sale_item') || clean.includes('items detail')) return 'sale_items';
+  if (clean.includes('sale') || clean.includes('invoice')) return 'sales';
+  if (clean.includes('expense')) return 'expenses';
+  if (clean.includes('khata') || clean.includes('customer payment') || clean.includes('customer_payment')) return 'customer_payments';
+  if (clean.includes('customer')) return 'customers';
+  if (clean.includes('supplier') || clean.includes('vendor')) return 'suppliers';
+  if (clean.includes('return')) return 'returns';
+  if (clean.includes('adjustment')) return 'stock_adjustments';
+  if (clean.includes('raast') || clean.includes('utility') || clean.includes('bill')) return 'raast_transactions';
+  if (clean.includes('category') || clean.includes('categories')) return 'categories';
+  if (clean.includes('brand')) return 'brands';
+  if (clean.includes('fragrance')) return 'fragrance_types';
+  if (clean.includes('audit') || clean.includes('log')) return 'audit_logs';
+  if (clean.includes('setting')) return 'settings';
+  
+  return null;
+}
+
+function mapHeaderToColumn(tableName, rawHeader) {
+  if (!rawHeader) return null;
+  const h = String(rawHeader).trim().toLowerCase().replace(/[^a-z0-9_]/g, ' ').replace(/\s+/g, ' ').trim();
+  
+  if (h === 'id' || h === 'record id') return 'id';
+
+  if (tableName === 'products') {
+    if (h.includes('name') || h === 'product' || h === 'item') return 'name';
+    if (h.includes('cat') || h === 'department') return 'category';
+    if (h.includes('brand')) return 'brand';
+    if (h.includes('size') || h.includes('variant')) return 'size';
+    if (h.includes('color') || h.includes('colour')) return 'color';
+    if (h.includes('fabric') || h.includes('material')) return 'fabric';
+    if (h.includes('fragrance') || h.includes('perfume')) return 'fragrance_type';
+    if (h.includes('gender')) return 'gender';
+    if (h.includes('barcode') || h === 'code') return 'barcode';
+    if (h.includes('sku')) return 'sku';
+    if (h.includes('purchase') || h.includes('cost') || h.includes('buy')) return 'purchase_price';
+    if (h.includes('wholesale')) return 'wholesale_price';
+    if (h.includes('sale') || h.includes('retail') || h.includes('price')) return 'sale_price';
+    if (h.includes('stock') || h.includes('qty') || h.includes('quantity')) return 'quantity';
+    if (h.includes('unit') || h.includes('inventory unit')) return 'inventory_unit';
+    if (h.includes('threshold') || h.includes('low')) return 'low_stock_threshold';
+    if (h.includes('supplier') || h.includes('vendor')) return 'supplier';
+    if (h.includes('status') || h.includes('active')) return 'is_active';
+    if (h.includes('updated')) return 'updated_at';
+    if (h.includes('created') || h.includes('date')) return 'created_at';
+  }
+
+  if (tableName === 'sales') {
+    if (h.includes('invoice') || h.includes('bill')) return 'invoice_no';
+    if (h.includes('customer name') || (h.includes('name') && !h.includes('item'))) return 'customer_name';
+    if (h.includes('phone') || h.includes('mobile')) return 'customer_phone';
+    if (h.includes('subtotal') || h.includes('sub total')) return 'subtotal';
+    if (h.includes('discount type')) return 'discount_type';
+    if (h.includes('discount value')) return 'discount_value';
+    if (h.includes('discount')) return 'discount_amount';
+    if (h.includes('tax')) return 'tax_amount';
+    if (h.includes('total') || h.includes('paid')) return 'total_amount';
+    if (h.includes('payment') || h.includes('method')) return 'payment_method';
+    if (h.includes('note') || h.includes('remark')) return 'notes';
+    if (h.includes('created') || h.includes('date')) return 'created_at';
+  }
+
+  if (tableName === 'sale_items') {
+    if (h.includes('sale id') || h === 'sale_id') return 'sale_id';
+    if (h.includes('product id') || h === 'product_id') return 'product_id';
+    if (h.includes('product name') || h.includes('name') || h === 'item') return 'product_name';
+    if (h.includes('size')) return 'product_size';
+    if (h.includes('color') || h.includes('colour')) return 'product_color';
+    if (h.includes('qty') || h.includes('quantity')) return 'quantity';
+    if (h.includes('unit')) return 'quantity_unit';
+    if (h.includes('sale') || h.includes('unit price') || h.includes('price')) return 'price_at_sale';
+    if (h.includes('purchase') || h.includes('cost')) return 'purchase_price_at_sale';
+    if (h.includes('total') || h.includes('line')) return 'line_total';
+  }
+
+  if (tableName === 'expenses') {
+    if (h.includes('type')) return 'expense_type';
+    if (h.includes('title') || h.includes('name')) return 'title';
+    if (h.includes('cat')) return 'category';
+    if (h.includes('amount') || h.includes('cost')) return 'amount';
+    if (h.includes('payment') || h.includes('method')) return 'payment_method';
+    if (h.includes('date')) return 'date';
+    if (h.includes('desc') || h.includes('reason') || h.includes('note')) return 'description';
+    if (h.includes('created')) return 'created_at';
+  }
+
+  if (tableName === 'customers') {
+    if (h.includes('code')) return 'customer_code';
+    if (h.includes('name')) return 'name';
+    if (h.includes('phone') || h.includes('mobile')) return 'phone';
+    if (h.includes('address')) return 'address';
+    if (h.includes('email')) return 'email';
+    if (h.includes('purchase')) return 'total_purchases';
+    if (h.includes('payment') || h.includes('paid')) return 'total_payments';
+    if (h.includes('balance') || h.includes('outstanding') || h.includes('khata')) return 'outstanding_balance';
+    if (h.includes('visit count') || h.includes('visits')) return 'visit_count';
+    if (h.includes('last visit')) return 'last_visit';
+    if (h.includes('created') || h.includes('date')) return 'created_at';
+  }
+
+  if (tableName === 'customer_payments') {
+    if (h.includes('customer id') || h === 'customer_id') return 'customer_id';
+    if (h.includes('amount') || h.includes('paid')) return 'amount';
+    if (h.includes('payment') || h.includes('method')) return 'payment_method';
+    if (h.includes('note') || h.includes('remark')) return 'note';
+    if (h.includes('date') || h.includes('created')) return 'created_at';
+  }
+
+  if (tableName === 'suppliers') {
+    if (h.includes('supplier name') || h.includes('name')) return 'name';
+    if (h.includes('company')) return 'company';
+    if (h.includes('phone') || h.includes('mobile')) return 'phone';
+    if (h.includes('address')) return 'address';
+    if (h.includes('email')) return 'email';
+    if (h.includes('balance') || h.includes('opening')) return 'opening_balance';
+    if (h.includes('created') || h.includes('date')) return 'created_at';
+  }
+
+  if (tableName === 'returns') {
+    if (h.includes('sale id') || h === 'sale_id') return 'sale_id';
+    if (h.includes('invoice')) return 'sale_invoice_no';
+    if (h.includes('product id') || h === 'product_id') return 'product_id';
+    if (h.includes('product name') || h.includes('name')) return 'product_name';
+    if (h.includes('qty') || h.includes('quantity')) return 'quantity';
+    if (h.includes('refund amount') || h.includes('amount')) return 'refund_amount';
+    if (h.includes('refund type') || h.includes('type')) return 'refund_type';
+    if (h.includes('reason')) return 'reason';
+    if (h.includes('created') || h.includes('date')) return 'created_at';
+  }
+
+  if (tableName === 'stock_adjustments') {
+    if (h.includes('product id') || h === 'product_id') return 'product_id';
+    if (h.includes('product name') || h.includes('name')) return 'product_name';
+    if (h.includes('adjustment type') || h.includes('type')) return 'adjustment_type';
+    if (h.includes('qty') || h.includes('quantity')) return 'quantity';
+    if (h.includes('reason') || h.includes('source')) return 'reason';
+    if (h.includes('created') || h.includes('date')) return 'created_at';
+  }
+
+  if (tableName === 'raast_transactions') {
+    if (h.includes('type')) return 'transaction_type';
+    if (h.includes('fee') || h.includes('profit') || h.includes('commission')) return 'fee_amount';
+    if (h.includes('total') || h.includes('handled')) return 'total_collected';
+    if (h.includes('amount')) return 'amount';
+    if (h.includes('created') || h.includes('date')) return 'created_at';
+  }
+
+  if (tableName === 'categories') {
+    if (h.includes('name')) return 'name';
+    if (h.includes('type') || h.includes('department')) return 'type';
+    if (h.includes('created')) return 'created_at';
+  }
+
+  if (tableName === 'brands') {
+    if (h.includes('name')) return 'name';
+    if (h.includes('category') || h.includes('cat')) return 'category';
+    if (h.includes('created')) return 'created_at';
+  }
+
+  if (tableName === 'fragrance_types') {
+    if (h.includes('name') || h.includes('type')) return 'name';
+    if (h.includes('created')) return 'created_at';
+  }
+
+  if (tableName === 'audit_logs') {
+    if (h.includes('user')) return 'user_name';
+    if (h.includes('action')) return 'action';
+    if (h.includes('detail')) return 'details';
+    if (h.includes('time') || h.includes('date') || h.includes('created')) return 'created_at';
+  }
+
+  if (tableName === 'settings') {
+    if (h.includes('key')) return 'key';
+    if (h.includes('value') || h.includes('val')) return 'value';
+  }
+
+  return rawHeader.trim().toLowerCase();
+}
+
+function sanitizeValueForColumn(tableName, colName, rawVal) {
+  if (rawVal === null || rawVal === undefined) return null;
+
+  if (rawVal instanceof Date) {
+    const d = rawVal;
+    if (colName === 'date') {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+  }
+
+  if (colName === 'is_active') {
+    const s = String(rawVal).trim().toLowerCase();
+    if (s === 'active' || s === '1' || s === 'true' || s === 'yes') return 1;
+    return 0;
+  }
+
+  if (colName === 'expense_type') {
+    const s = String(rawVal).trim().toLowerCase();
+    return s.includes('home') ? 'home' : 'shop';
+  }
+
+  const numericCols = [
+    'purchase_price', 'sale_price', 'wholesale_price', 'quantity', 'retail_quantity',
+    'low_stock_threshold', 'subtotal', 'discount_value', 'discount_amount', 'tax_amount',
+    'total_amount', 'price_at_sale', 'purchase_price_at_sale', 'line_total', 'amount',
+    'total_purchases', 'total_payments', 'outstanding_balance', 'visit_count',
+    'opening_balance', 'refund_amount', 'fee_amount', 'total_collected'
+  ];
+
+  if (numericCols.includes(colName)) {
+    if (typeof rawVal === 'number') return isNaN(rawVal) ? 0 : rawVal;
+    if (typeof rawVal === 'string') {
+      const cleaned = rawVal.replace(/[^0-9.-]/g, '');
+      const num = parseFloat(cleaned);
+      return isNaN(num) ? 0 : num;
+    }
+    return 0;
+  }
+
+  if (typeof rawVal === 'string') {
+    return rawVal.trim();
+  }
+
+  return rawVal;
+}
+
+async function parseExcelBackup(filePath) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(filePath);
+
+  const tablesData = {};
+  ALL_TABLES.forEach(tbl => { tablesData[tbl] = []; });
+
+  workbook.eachSheet((worksheet) => {
+    const tableName = resolveSheetToTable(worksheet.name);
+    if (!tableName || !ALL_TABLES.includes(tableName)) return;
+
+    const headerRow = worksheet.getRow(1);
+    const colMap = {};
+
+    headerRow.eachCell((cell, colNumber) => {
+      const cellVal = extractCellValue(cell);
+      if (cellVal) {
+        const mappedCol = mapHeaderToColumn(tableName, String(cellVal));
+        if (mappedCol) {
+          colMap[colNumber] = mappedCol;
+        }
+      }
+    });
+
+    if (Object.keys(colMap).length === 0) return;
+
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+
+      const rowData = {};
+      let hasData = false;
+
+      row.eachCell((cell, colNumber) => {
+        const colName = colMap[colNumber];
+        if (colName) {
+          const rawVal = extractCellValue(cell);
+          if (rawVal !== null && rawVal !== undefined && rawVal !== '') {
+            hasData = true;
+            rowData[colName] = sanitizeValueForColumn(tableName, colName, rawVal);
+          }
+        }
+      });
+
+      if (hasData) {
+        tablesData[tableName].push(rowData);
+      }
+    });
+  });
+
+  return tablesData;
+}
+
+// ─── 4. Inspect Backup File (.xlsx, .db, or .json) ───
 async function inspectBackupFile(filePath) {
   if (!fs.existsSync(filePath)) {
     throw new Error('Selected backup file does not exist');
@@ -448,7 +754,39 @@ async function inspectBackupFile(filePath) {
   const stats = fs.statSync(filePath);
   const ext = path.extname(filePath).toLowerCase();
 
-  if (ext === '.json') {
+  if (ext === '.xlsx' || ext === '.xls') {
+    try {
+      const tablesData = await parseExcelBackup(filePath);
+      const summary = {};
+      ALL_TABLES.forEach(tbl => {
+        summary[tbl] = Array.isArray(tablesData[tbl]) ? tablesData[tbl].length : 0;
+      });
+
+      const totalRecords = Object.values(summary).reduce((a, b) => a + b, 0);
+
+      return {
+        valid: totalRecords > 0,
+        type: 'excel',
+        filePath,
+        fileName: path.basename(filePath),
+        fileSize: `${(stats.size / 1024).toFixed(1)} KB`,
+        exportedAt: stats.mtime.toISOString(),
+        appName: "Gul Son's Master Excel",
+        stats: summary,
+        totalRecords,
+        error: totalRecords === 0 ? 'No recognizable data sheets found in Excel file' : null
+      };
+    } catch (err) {
+      return {
+        valid: false,
+        type: 'excel',
+        filePath,
+        fileName: path.basename(filePath),
+        fileSize: `${(stats.size / 1024).toFixed(1)} KB`,
+        error: 'Failed to read Excel file: ' + err.message
+      };
+    }
+  } else if (ext === '.json') {
     try {
       const content = fs.readFileSync(filePath, 'utf-8');
       const parsed = JSON.parse(content);
@@ -565,11 +903,11 @@ async function inspectBackupFile(filePath) {
       };
     }
   } else {
-    throw new Error('Unsupported backup file format. Please select a .db, .sqlite, or .json file.');
+    throw new Error('Unsupported backup file format. Please select an Excel (.xlsx), SQLite (.db), or JSON (.json) file.');
   }
 }
 
-// ─── 5. Restore Database (.db or .json) ───
+// ─── 5. Restore Database (.xlsx, .db, or .json) ───
 async function restoreDatabase(db, filePath) {
   // Step 1: Inspect and validate file first
   const inspection = await inspectBackupFile(filePath);
@@ -582,7 +920,103 @@ async function restoreDatabase(db, filePath) {
 
   const ext = path.extname(filePath).toLowerCase();
 
-  if (ext === '.json') {
+  if (ext === '.xlsx' || ext === '.xls') {
+    const data = await parseExcelBackup(filePath);
+    const populatedTables = Object.keys(data).filter(tbl => Array.isArray(data[tbl]) && data[tbl].length > 0);
+
+    if (populatedTables.length === 0) {
+      throw new Error('No valid database records found in the selected Excel file.');
+    }
+
+    const restoreTransaction = db.transaction(() => {
+      // Temporarily disable foreign keys for clean restoration
+      db.pragma('foreign_keys = OFF');
+
+      // Clear existing records in reverse dependency order for tables present in Excel
+      const clearOrder = [
+        'customer_payments',
+        'returns',
+        'stock_adjustments',
+        'sale_items',
+        'sales',
+        'expenses',
+        'products',
+        'customers',
+        'suppliers',
+        'raast_transactions',
+        'fragrance_types',
+        'brands',
+        'categories',
+        'settings',
+        'audit_logs'
+      ];
+
+      for (const tbl of clearOrder) {
+        if (populatedTables.includes(tbl)) {
+          try {
+            db.exec(`DELETE FROM ${tbl};`);
+          } catch (e) {
+            console.warn(`Could not clear table ${tbl}:`, e.message);
+          }
+        }
+      }
+
+      // Re-insert data for each table
+      for (const [tbl, rows] of Object.entries(data)) {
+        if (!Array.isArray(rows) || rows.length === 0) continue;
+
+        const allCols = Array.from(new Set(rows.flatMap(r => Object.keys(r))));
+        if (allCols.length === 0) continue;
+
+        const placeholders = allCols.map(() => '?').join(', ');
+        const insertSql = `INSERT OR REPLACE INTO ${tbl} (${allCols.join(', ')}) VALUES (${placeholders})`;
+        const stmt = db.prepare(insertSql);
+
+        for (const row of rows) {
+          const values = allCols.map(c => row[c] !== undefined ? row[c] : null);
+          stmt.run(values);
+        }
+      }
+
+      // Re-enable foreign keys
+      db.pragma('foreign_keys = ON');
+
+      // Synchronize auto-increment sequence counters
+      for (const tbl of clearOrder) {
+        if (tbl === 'settings') continue;
+        if (populatedTables.includes(tbl)) {
+          try {
+            db.exec(`
+              DELETE FROM sqlite_sequence WHERE name = '${tbl}';
+              INSERT INTO sqlite_sequence (name, seq) SELECT '${tbl}', COALESCE(MAX(id), 0) FROM ${tbl};
+            `);
+          } catch (e) {}
+        }
+      }
+
+      // Log restoration action in audit log
+      try {
+        db.prepare('INSERT INTO audit_logs (user_name, action, details) VALUES (?, ?, ?)')
+          .run('Admin', 'Restore Database (Excel)', `Database imported/restored from Excel file: ${path.basename(filePath)} (${inspection.totalRecords} records across ${populatedTables.length} tables)`);
+      } catch (e) {}
+    });
+
+    restoreTransaction();
+
+    if (db && typeof db.flush === 'function') {
+      db.flush();
+    }
+
+    return {
+      success: true,
+      mode: 'excel',
+      safetyBackupPath,
+      stats: inspection.stats,
+      totalRecords: inspection.totalRecords,
+      fileName: path.basename(filePath)
+    };
+
+  } else if (ext === '.json') {
     const raw = fs.readFileSync(filePath, 'utf-8');
     const parsed = JSON.parse(raw);
     const data = parsed.data || {};
@@ -707,6 +1141,7 @@ async function restoreDatabase(db, filePath) {
       safeAddColumn('customers', 'total_payments REAL NOT NULL DEFAULT 0');
       safeAddColumn('customers', 'outstanding_balance REAL NOT NULL DEFAULT 0');
       safeAddColumn('returns', "refund_type TEXT DEFAULT 'Cash Refund'");
+      safeAddColumn('expenses', "expense_type TEXT NOT NULL DEFAULT 'shop'");
 
       db.prepare('INSERT INTO audit_logs (user_name, action, details) VALUES (?, ?, ?)')
         .run('Admin', 'Restore Database', `Database restored from SQLite file: ${path.basename(filePath)}`);

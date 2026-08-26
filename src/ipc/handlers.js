@@ -388,9 +388,10 @@ function registerHandlers(db, ipcMain) {
 
   ipcMain.handle('backup:selectFileToRestore', async () => {
     const result = await dialog.showOpenDialog({
-      title: 'Select Backup File to Restore (.db or .json)',
+      title: 'Select Backup / Master File to Import (.xlsx, .db, .json)',
       filters: [
-        { name: 'All Supported Backup Files', extensions: ['db', 'sqlite', 'bak', 'json'] },
+        { name: 'All Supported Backup Files (*.xlsx, *.db, *.json, *.sqlite)', extensions: ['xlsx', 'xls', 'db', 'sqlite', 'bak', 'json'] },
+        { name: 'Excel Master Files (*.xlsx, *.xls)', extensions: ['xlsx', 'xls'] },
         { name: 'SQLite Database Files (*.db, *.sqlite)', extensions: ['db', 'sqlite', 'bak'] },
         { name: 'JSON Backup Files (*.json)', extensions: ['json'] }
       ],
