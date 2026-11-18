@@ -232,6 +232,7 @@ window.ReportsPage = {
         area.innerHTML = `
           <div class="card">
             <h3 class="card-title">Category Sales Comparison (Clothes, Hosiery, Perfumes &amp; Empty Bottles)</h3>
+            <p class="card-subtitle">Gross sales before invoice discounts, tax and returns. Use daily or monthly reports for return-adjusted totals.</p>
             <div class="table-container" style="margin-top:var(--space-3);">
               <table class="data-table">
                 <thead>
@@ -239,8 +240,8 @@ window.ReportsPage = {
                     <th>Category</th>
                     <th>Total Invoices</th>
                     <th>Qty Sold</th>
-                    <th>Total Revenue</th>
-                    <th>Net Profit</th>
+                    <th>Gross Revenue</th>
+                    <th>Gross Profit</th>
                   </tr>
                 </thead>
                 <tbody>

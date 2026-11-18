@@ -194,6 +194,7 @@ window.POSPage = {
     }
 
     this.renderProductsGrid(this.products);
+    this.renderCart();
   },
 
   onCustomerNameInput(val) {
@@ -648,7 +649,6 @@ window.POSPage = {
         <thead>
           <tr>
             <th>Product</th>
-            <th>Variant</th>
             <th>Qty</th>
             <th>Price</th>
             <th>Total</th>
@@ -658,15 +658,14 @@ window.POSPage = {
         <tbody>
           ${this.cart.map(item => `
             <tr>
-              <td style="font-weight:600;">${item.product_name}</td>
-              <td><span class="badge ${item.category === 'Clothes' ? 'badge-clothes' : (item.category === 'Hosiery' ? 'badge-hosiery' : 'badge-perfume')}">${item.variant || '-'}</span></td>
+              <td style="font-weight:600; white-space:normal; overflow-wrap:anywhere;">${item.product_name}<small style="display:block; color:var(--color-text-muted);">${item.variant || '-'}</small></td>
               <td>
                 <div class="flex items-center gap-1">
                   <button class="btn btn-ghost btn-sm" style="padding:2px 5px;" onclick="POSPage.updateQuantity(${item.product_id}, -1)">-</button>
                   <input type="number" step="${item.quantity_unit === 'Bottles' ? '1' : 'any'}" min="0.01" max="${item.max_stock}" value="${item.quantity}" onchange="POSPage.setCartItemQty(${item.product_id}, this.value)" style="width:48px; text-align:center; font-weight:700; height:24px; font-size:11px; border:1px solid var(--color-border); border-radius:4px; background:var(--color-bg-primary);">
-                  <span style="font-size:10px; color:var(--color-text-secondary);">${item.quantity_unit || ''}</span>
                   <button class="btn btn-ghost btn-sm" style="padding:2px 5px;" onclick="POSPage.updateQuantity(${item.product_id}, 1)">+</button>
                 </div>
+                <small style="display:block; text-align:center; color:var(--color-text-secondary);">${item.quantity_unit || ''}</small>
               </td>
               <td>Rs. ${item.price_at_sale.toLocaleString()}</td>
               <td style="font-weight:700; color:var(--color-accent);">Rs. ${(item.price_at_sale * item.quantity).toLocaleString()}</td>
@@ -712,6 +711,7 @@ window.POSPage = {
   },
 
   async completeSale(printPdf = true) {
+    if (this.saving) return;
     if (this.cart.length === 0) {
       toast.warning('Cart is empty!');
       return;
@@ -770,6 +770,7 @@ window.POSPage = {
       line_total: i.price_at_sale * i.quantity
     }));
 
+    this.saving = true;
     try {
       const result = await window.api.sales.create(saleData, itemsData);
       toast.success(`Invoice ${result.invoice_no} completed & saved to database!`);
@@ -795,10 +796,19 @@ window.POSPage = {
       }
 
       this.cart = [];
-      this.init();
+      for (const [id, value] of Object.entries({
+        'pos-cust-name': '', 'pos-cust-phone': '', 'pos-discount-val': '0',
+        'pos-discount-type': 'flat', 'pos-tax-val': '0', 'pos-payment-method': 'Cash'
+      })) {
+        const input = document.getElementById(id);
+        if (input) input.value = value;
+      }
+      await this.init();
     } catch (err) {
       console.error(err);
       toast.error('Failed to complete sale: ' + err.message);
+    } finally {
+      this.saving = false;
     }
   },
 

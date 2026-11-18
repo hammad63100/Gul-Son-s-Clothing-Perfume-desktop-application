@@ -68,17 +68,19 @@ window.FinancePage = {
     try {
       if (this.activeTab === 'cashbook') {
         const targetDate = this.selectedCashbookDate || today;
-        const [dailySales, dayShopExp, dayHomeExp, dayAllExpenses, allReturns] = await Promise.all([
-          window.api.sales.getDailySummary(targetDate),
-          window.api.expenses.getSummary(targetDate, targetDate, 'shop'),
-          window.api.expenses.getSummary(targetDate, targetDate, 'home'),
+        const [dayAllExpenses, allReturns, daySales] = await Promise.all([
           window.api.expenses.getAll({ startDate: targetDate, endDate: targetDate }),
-          window.api.returns.getAll({ startDate: targetDate, endDate: targetDate })
+          window.api.returns.getAll({ startDate: targetDate, endDate: targetDate }),
+          window.api.sales.getAll({ startDate: targetDate, endDate: targetDate, includeFullyReturned: true })
         ]);
 
-        const totalCashIn = dailySales.total_revenue || 0;
-        const totalShopPaid = dayShopExp || 0;
-        const totalHomePaid = dayHomeExp || 0;
+        // Daily revenue is already net of returns. Cashbook needs gross cash
+        // receipts because refunds are recorded separately as cash outflows.
+        const cashSales = daySales.filter(s => s.payment_method === 'Cash');
+        const totalCashIn = cashSales.reduce((sum, s) => sum + Number(s.total_amount || 0), 0);
+        const cashExpenses = dayAllExpenses.filter(e => e.payment_method === 'Cash');
+        const totalShopPaid = cashExpenses.filter(e => e.expense_type !== 'home').reduce((sum,e) => sum + Number(e.amount || 0), 0);
+        const totalHomePaid = cashExpenses.filter(e => e.expense_type === 'home').reduce((sum,e) => sum + Number(e.amount || 0), 0);
         const totalRefunds = (allReturns || []).reduce((sum, r) => sum + (r.refund_type === 'Cash Refund' ? Number(r.refund_amount || 0) : 0), 0);
         const totalCashOut = totalShopPaid + totalHomePaid + totalRefunds;
         const netCashBalance = totalCashIn - totalCashOut;
@@ -100,7 +102,7 @@ window.FinancePage = {
               <div class="stat-card" style="background:var(--color-bg-tertiary);">
                 <div class="stat-label">1. Total Cash In (Sales)</div>
                 <div class="stat-value" style="color:var(--color-success);">${formatters.currency(totalCashIn, curr)}</div>
-                <small style="color:var(--color-text-muted);">${dailySales.total_sales || 0} cash bills received</small>
+                <small style="color:var(--color-text-muted);">${cashSales.length} cash bills received</small>
               </div>
 
               <div class="stat-card" style="background:var(--color-bg-tertiary);">

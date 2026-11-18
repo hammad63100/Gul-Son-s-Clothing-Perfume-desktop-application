@@ -202,6 +202,9 @@ function productsDB(db) {
     },
 
     update(id, data) {
+      const existing = this.get(id);
+      if (!existing) throw new Error('Product not found');
+      data = { ...existing, ...data };
       const sanitized = validateAndSanitizeProduct(data, true);
       const fields = [];
       const params = [];

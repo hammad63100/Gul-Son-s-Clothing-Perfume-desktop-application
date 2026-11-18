@@ -128,16 +128,12 @@ window.app = {
 
       case 'purchase-stock':
         await InventoryPage.render(mainContent);
-        const products = await window.api.products.getAll();
-        if (products && products.length > 0) {
-          InventoryPage.openStockInModal(products[0].id);
-        } else {
-          InventoryPage.openAddModal();
-        }
+        toast.info('Choose a product and click + Stock to record a purchase.');
         break;
 
       case 'purchase-return':
-        await InventoryPage.render(mainContent, 'low-stock');
+        await InventoryPage.render(mainContent);
+        toast.info('Choose a product and click Return to return stock to a supplier.');
         break;
 
       case 'company-voucher':
@@ -145,8 +141,17 @@ window.app = {
         break;
 
       case 'stock-report':
+        await InventoryPage.render(mainContent);
+        mainContent.querySelector('.page-title').textContent = 'Available Stock Report';
+        const analyticsButton = document.createElement('button');
+        analyticsButton.className = 'btn btn-secondary';
+        analyticsButton.textContent = 'Sales Analytics';
+        analyticsButton.onclick = () => this.navigateTo('reports');
+        mainContent.querySelector('.page-header .toolbar').appendChild(analyticsButton);
+        break;
+
+      case 'reports':
         await ReportsPage.render(mainContent);
-        ReportsPage.switchTab('category');
         break;
 
       case 'cash-book':

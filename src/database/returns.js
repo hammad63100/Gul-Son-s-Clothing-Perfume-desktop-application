@@ -9,6 +9,11 @@ function returnsDB(db) {
 
         const saleItem = db.prepare('SELECT * FROM sale_items WHERE sale_id = ? AND product_id = ?').get(saleId, productId);
         if (!saleItem) throw new Error('Product not found in this sale');
+        const product = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
+        if ((saleItem.quantity_unit === 'Bottles' || product?.category === 'Empty Bottle' ||
+             String(product?.fragrance_type || '').trim().toLowerCase() === 'empty bottle') && !Number.isInteger(quantity)) {
+          throw new Error('Empty bottle return quantity must be a whole number');
+        }
 
         // Check return quantity limit
         const alreadyReturned = db.prepare('SELECT COALESCE(SUM(quantity), 0) as qty, COALESCE(SUM(refund_amount), 0) as total_refund FROM returns WHERE sale_id = ? AND product_id = ?').get(saleId, productId);

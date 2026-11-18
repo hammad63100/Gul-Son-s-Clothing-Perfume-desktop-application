@@ -170,12 +170,14 @@ async function createDatabaseAdapter(dbPath) {
               wasmDb.run(sql);
             }
             dirty = true;
-            if (transactionDepth === 0) saveToDisk();
             let lastInsertRowid = 0;
             try {
               const res = wasmDb.exec("SELECT last_insert_rowid() as id");
               lastInsertRowid = res[0] && res[0].values && res[0].values[0] ? res[0].values[0][0] : 0;
             } catch (e) {}
+            // sql.js export() resets connection state, including last_insert_rowid.
+            // Capture the inserted ID before persisting the database.
+            if (transactionDepth === 0) saveToDisk();
             return { lastInsertRowid };
           },
           get(...params) {

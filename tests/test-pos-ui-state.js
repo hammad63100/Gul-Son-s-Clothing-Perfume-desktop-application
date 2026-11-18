@@ -1,0 +1,23 @@
+const assert = require('assert/strict');
+const vm = require('vm');
+const fs = require('fs');
+const nodes = new Map();
+const defaults = {'pos-cust-name':'QA Customer','pos-cust-phone':'QA-001','pos-payment-method':'Cash','pos-discount-val':'10','pos-discount-type':'flat','pos-tax-val':'0'};
+const document = { getElementById(id) { if (!nodes.has(id)) nodes.set(id,{value:defaults[id] || '',textContent:'',innerHTML:'',style:{},focus(){}});return nodes.get(id); } };
+let calls=0;
+const api = {sales:{async create(){calls++;await new Promise(r=>setImmediate(r));return {invoice_no:'GS-000001'};},async getNextInvoiceNo(){return 'GS-000002';}},products:{async getAll(){return [];}},customers:{async getAll(){return [];}}};
+const context={window:{api},document,toast:{success(){},warning(){},error(){}},console};
+vm.runInNewContext(fs.readFileSync(require.resolve('../renderer/js/pages/pos.js'),'utf8'),context);
+const pos=context.window.POSPage;
+pos.cart=[{product_id:1,product_name:'QA',quantity:2,price_at_sale:100}];
+(async()=>{
+  await Promise.all([pos.completeSale(false),pos.completeSale(false)]);
+  assert.equal(calls,1,'rapid repeated checkout must save only one invoice');
+  assert.equal(pos.cart.length,0);
+  assert.match(document.getElementById('pos-cart-items').innerHTML,/Cart is Empty/);
+  assert.equal(document.getElementById('pos-grand-total').textContent,'Rs. 0');
+  assert.equal(document.getElementById('pos-cust-name').value,'');
+  assert.equal(document.getElementById('pos-discount-val').value,'0');
+  assert.equal(pos.saving,false);
+  console.log('PASS POS checkout clears visible cart, totals and customer/discount fields; duplicate submission blocked');
+})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -12,6 +12,11 @@ function salesDB(db) {
       const txn = db.transaction(() => {
         if (!Array.isArray(items) || items.length === 0) throw new Error('A sale must contain at least one item');
         if (!saleData || typeof saleData !== 'object') throw new Error('Sale details are required');
+        if (saleData.payment_method === 'Credit / Unpaid' &&
+            (!String(saleData.customer_name || '').trim() ||
+             String(saleData.customer_name).trim().toLowerCase() === 'walk-in customer')) {
+          throw new Error('A named customer is required for a credit sale');
+        }
         const invoiceNo = this.getNextInvoiceNo();
 
         // Calculate totals
@@ -24,6 +29,9 @@ function salesDB(db) {
           if (!Number.isFinite(price) || price < 0) throw new Error('Each item price must be a valid non-negative number');
           const product = db.prepare('SELECT * FROM products WHERE id = ? AND is_active = 1').get(item.product_id);
           if (!product) throw new Error('One or more products are unavailable');
+          if ((product.category === 'Empty Bottle' || String(product.fragrance_type || '').trim().toLowerCase() === 'empty bottle') && !Number.isInteger(quantity)) {
+            throw new Error('Empty bottle sale quantity must be a whole number');
+          }
           const requested = (requestedQuantities.get(product.id) || 0) + quantity;
           if (product.quantity < requested) throw new Error(`Insufficient stock for ${product.name}. Available: ${product.quantity}`);
           requestedQuantities.set(product.id, requested);

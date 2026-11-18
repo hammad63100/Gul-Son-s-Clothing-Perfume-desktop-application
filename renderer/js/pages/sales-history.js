@@ -202,6 +202,7 @@ window.SalesHistoryPage = {
 
           <h5 style="font-size:var(--text-xs); color:var(--color-text-muted); margin-bottom:6px;">Select Item for Partial Return / Exchange:</h5>
           
+          <div class="table-container" style="overflow-x:auto;">
           <table class="data-table" style="font-size:12px;">
             <thead>
               <tr>
@@ -224,7 +225,7 @@ window.SalesHistoryPage = {
                   <td>${item.product_size || '-'}</td>
                   <td>
                     <span class="badge ${isReturned ? 'badge-danger' : 'badge-info'}">
-                      ${item.returnableQty} / ${item.quantity} ${formatters.getProductUnit(item)}
+                      ${item.returnableQty} / ${item.quantity} ${item.quantity_unit || formatters.getProductUnit(item)}
                     </span>
                   </td>
                   <td>Rs. ${item.price_at_sale}</td>
@@ -241,6 +242,7 @@ window.SalesHistoryPage = {
               }).join('')}
             </tbody>
           </table>
+          </div>
         </div>
       `;
     } catch (err) {

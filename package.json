@@ -5,7 +5,9 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node tests/test-backup-restore.js",
+    "test": "node tests/test-backup-restore.js && node tests/test-functional-qa.js && node tests/test-pos-ui-state.js && node tests/test-cashbook-ui-state.js",
+    "test:qa-ui": "electron tests/qa-launch.js",
+    "test:wasm": "node --no-experimental-sqlite tests/test-backup-restore.js && node --no-experimental-sqlite tests/test-functional-qa.js",
     "build-icon": "node build-icon.js",
     "build": "node build-icon.js && electron-builder --win",
     "pack": "electron-builder --dir"
