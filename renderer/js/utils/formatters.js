@@ -31,6 +31,10 @@ window.formatters = {
     const size = (p.size || p.product_size || p.variant || '').trim();
     const fragType = (p.fragrance_type || '').trim().toLowerCase();
 
+    if (cat === 'Empty Bottle' || fragType === 'empty bottle') {
+      return 'Bottles';
+    }
+
     // 1. Perfume
     if (cat === 'Perfume') {
       if (fragType === 'body spray' || fragType === 'body spary') {

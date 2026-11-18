@@ -105,8 +105,20 @@ window.app = {
         await SalesHistoryPage.render(mainContent, 'returns');
         break;
 
+      case 'sales-history':
+        await SalesHistoryPage.render(mainContent, 'history');
+        break;
+
       case 'customers':
         await CustomersPage.render(mainContent);
+        break;
+
+      case 'inventory':
+        await InventoryPage.render(mainContent);
+        break;
+
+      case 'categories':
+        await CategoriesPage.render(mainContent);
         break;
 
       case 'add-stock':

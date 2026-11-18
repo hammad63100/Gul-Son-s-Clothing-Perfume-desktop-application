@@ -48,6 +48,7 @@ window.POSPage = {
               <button class="tab-btn" onclick="POSPage.filterCategory('Clothes', this)">👔 Clothes</button>
               <button class="tab-btn" onclick="POSPage.filterCategory('Hosiery', this)">🧦 Hosiery</button>
               <button class="tab-btn" onclick="POSPage.filterCategory('Perfume', this)">🧴 Perfumes</button>
+              <button class="tab-btn" onclick="POSPage.filterCategory('Empty Bottle', this)">🧴 Empty Bottles</button>
             </div>
 
             <!-- Product List Table Container -->
@@ -514,6 +515,13 @@ window.POSPage = {
     if (!item) return;
 
     const qty = parseFloat(val);
+    const isEmptyBottle = item.category === 'Empty Bottle' ||
+      String(item.fragrance_type || '').trim().toLowerCase() === 'empty bottle';
+    if (isEmptyBottle && Number.isFinite(qty) && !Number.isInteger(qty)) {
+      toast.error('Empty bottle quantity must be a whole number');
+      this.renderCart();
+      return;
+    }
     if (isNaN(qty) || qty <= 0) {
       this.cart = this.cart.filter(i => i.product_id !== productId);
     } else if (qty > item.max_stock) {
@@ -529,7 +537,14 @@ window.POSPage = {
     const item = this.cart.find(i => i.product_id === productId);
     if (!item) return;
 
-    item.quantity = parseFloat((item.quantity + delta).toFixed(3));
+    const quantity = item.quantity + delta;
+    const isEmptyBottle = item.category === 'Empty Bottle' ||
+      String(item.fragrance_type || '').trim().toLowerCase() === 'empty bottle';
+    if (isEmptyBottle && !Number.isInteger(quantity)) {
+      toast.error('Empty bottle quantity must be a whole number');
+      return;
+    }
+    item.quantity = parseFloat(quantity.toFixed(3));
     if (item.quantity > item.max_stock) {
       item.quantity = item.max_stock;
       const unit = formatters.getProductUnit(item);
@@ -648,7 +663,7 @@ window.POSPage = {
               <td>
                 <div class="flex items-center gap-1">
                   <button class="btn btn-ghost btn-sm" style="padding:2px 5px;" onclick="POSPage.updateQuantity(${item.product_id}, -1)">-</button>
-                  <input type="number" step="any" min="0.01" max="${item.max_stock}" value="${item.quantity}" onchange="POSPage.setCartItemQty(${item.product_id}, this.value)" style="width:48px; text-align:center; font-weight:700; height:24px; font-size:11px; border:1px solid var(--color-border); border-radius:4px; background:var(--color-bg-primary);">
+                  <input type="number" step="${item.quantity_unit === 'Bottles' ? '1' : 'any'}" min="0.01" max="${item.max_stock}" value="${item.quantity}" onchange="POSPage.setCartItemQty(${item.product_id}, this.value)" style="width:48px; text-align:center; font-weight:700; height:24px; font-size:11px; border:1px solid var(--color-border); border-radius:4px; background:var(--color-bg-primary);">
                   <span style="font-size:10px; color:var(--color-text-secondary);">${item.quantity_unit || ''}</span>
                   <button class="btn btn-ghost btn-sm" style="padding:2px 5px;" onclick="POSPage.updateQuantity(${item.product_id}, 1)">+</button>
                 </div>

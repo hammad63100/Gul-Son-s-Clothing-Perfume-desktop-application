@@ -233,6 +233,7 @@ async function initDatabase(customDbPath = null) {
       category TEXT NOT NULL DEFAULT 'Clothes',
       brand TEXT,
       size TEXT,
+      measurement_ml REAL,
       color TEXT,
       fabric TEXT,
       fragrance_type TEXT,
@@ -432,6 +433,7 @@ async function initDatabase(customDbPath = null) {
   };
 
   safeAddColumn('products', 'brand TEXT');
+  safeAddColumn('products', 'measurement_ml REAL');
   safeAddColumn('products', 'fabric TEXT');
   safeAddColumn('products', 'fragrance_type TEXT');
   safeAddColumn('products', 'gender TEXT');
@@ -450,6 +452,28 @@ async function initDatabase(customDbPath = null) {
   safeAddColumn('raast_transactions', 'bill_type TEXT');
   safeAddColumn('raast_transactions', 'consumer_number TEXT');
   safeAddColumn('expenses', "expense_type TEXT NOT NULL DEFAULT 'shop'");
+
+  try {
+    db.exec(`
+      UPDATE products
+      SET category = 'Empty Bottle',
+          measurement_ml = CASE
+            WHEN measurement_ml IS NULL OR measurement_ml <= 0 THEN
+              CASE WHEN CAST(size AS REAL) > 0 THEN CAST(size AS REAL) ELSE measurement_ml END
+            ELSE measurement_ml
+          END,
+          size = CASE
+            WHEN size IS NULL OR TRIM(size) = '' THEN
+              CASE WHEN measurement_ml > 0 THEN CAST(measurement_ml AS TEXT) || ' ml' ELSE size END
+            ELSE size
+          END,
+          fragrance_type = NULL,
+          gender = NULL,
+          inventory_unit = 'Bottles'
+      WHERE category = 'Perfume' AND LOWER(TRIM(COALESCE(fragrance_type, ''))) = 'empty bottle';
+      DELETE FROM fragrance_types WHERE LOWER(TRIM(name)) = 'empty bottle';
+    `);
+  } catch (e) {}
 
   // Update known perfume/hosiery brands to correct category for existing databases
   try {
@@ -521,6 +545,7 @@ async function initDatabase(customDbPath = null) {
       ['Men\'s Perfume', 'Perfume'],
       ['Women\'s Perfume', 'Perfume'],
       ['Unisex Perfume', 'Perfume'],
+      ['Empty Bottle', 'Perfume'],
       ['Attar & Oud', 'Perfume'],
       ['Body Spray', 'Perfume'],
       ['Banyans / Vests', 'Hosiery'],

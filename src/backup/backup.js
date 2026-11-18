@@ -251,14 +251,14 @@ async function exportAllToExcel(db, filePath) {
   // 2. Products Sheet
   const productsSheet = workbook.addWorksheet('Products & Stock');
   applyHeader(productsSheet, [
-    'ID', 'Product Name', 'Category', 'Brand', 'Size', 'Color', 'Fabric', 'Fragrance Type',
+    'ID', 'Product Name', 'Category', 'Brand', 'Size', 'Measurement (ml)', 'Color', 'Fabric', 'Fragrance Type',
     'Barcode', 'SKU', 'Purchase Price', 'Sale Price', 'Wholesale Price', 'Stock Qty',
     'Low Threshold', 'Supplier', 'Status', 'Created Date', 'Updated Date'
   ]);
   const products = db.prepare('SELECT * FROM products ORDER BY id ASC').all();
   for (const p of products) {
     productsSheet.addRow([
-      p.id, p.name, p.category, p.brand || '', p.size || '', p.color || '', p.fabric || '',
+      p.id, p.name, p.category, p.brand || '', p.size || '', p.measurement_ml ?? '', p.color || '', p.fabric || '',
       p.fragrance_type || '', p.barcode || '', p.sku || '', p.purchase_price, p.sale_price,
       p.wholesale_price || 0, p.quantity, p.low_stock_threshold, p.supplier || '',
       p.is_active ? 'Active' : 'Discontinued', p.created_at, p.updated_at || ''
@@ -495,6 +495,7 @@ function mapHeaderToColumn(tableName, rawHeader) {
     if (h.includes('name') || h === 'product' || h === 'item') return 'name';
     if (h.includes('cat') || h === 'department') return 'category';
     if (h.includes('brand')) return 'brand';
+    if (h.includes('measurement')) return 'measurement_ml';
     if (h.includes('size') || h.includes('variant')) return 'size';
     if (h.includes('color') || h.includes('colour')) return 'color';
     if (h.includes('fabric') || h.includes('material')) return 'fabric';
@@ -536,8 +537,8 @@ function mapHeaderToColumn(tableName, rawHeader) {
     if (h.includes('size')) return 'product_size';
     if (h.includes('color') || h.includes('colour')) return 'product_color';
     if (h.includes('qty') || h.includes('quantity')) return 'quantity';
-    if (h.includes('unit')) return 'quantity_unit';
     if (h.includes('sale') || h.includes('unit price') || h.includes('price')) return 'price_at_sale';
+    if (h.includes('unit')) return 'quantity_unit';
     if (h.includes('purchase') || h.includes('cost')) return 'purchase_price_at_sale';
     if (h.includes('total') || h.includes('line')) return 'line_total';
   }
@@ -669,7 +670,7 @@ function sanitizeValueForColumn(tableName, colName, rawVal) {
   }
 
   const numericCols = [
-    'purchase_price', 'sale_price', 'wholesale_price', 'quantity', 'retail_quantity',
+    'purchase_price', 'sale_price', 'wholesale_price', 'quantity', 'retail_quantity', 'measurement_ml',
     'low_stock_threshold', 'subtotal', 'discount_value', 'discount_amount', 'tax_amount',
     'total_amount', 'price_at_sale', 'purchase_price_at_sale', 'line_total', 'amount',
     'total_purchases', 'total_payments', 'outstanding_balance', 'visit_count',
@@ -1130,6 +1131,7 @@ async function restoreDatabase(db, filePath) {
         try { db.exec(`ALTER TABLE ${table} ADD COLUMN ${colDef};`); } catch (e) {}
       };
       safeAddColumn('products', 'brand TEXT');
+      safeAddColumn('products', 'measurement_ml REAL');
       safeAddColumn('products', 'fabric TEXT');
       safeAddColumn('products', 'fragrance_type TEXT');
       safeAddColumn('products', 'gender TEXT');

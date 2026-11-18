@@ -11,6 +11,10 @@ function productsDB(db) {
     return number;
   };
 
+  const isEmptyBottleProduct = (product) =>
+    product.category === 'Empty Bottle' ||
+    String(product.fragrance_type || '').trim().toLowerCase() === 'empty bottle';
+
   const validateAndSanitizeProduct = (data, isUpdate = false) => {
     const cleaned = {};
 
@@ -22,7 +26,7 @@ function productsDB(db) {
 
     if (!isUpdate || data.category !== undefined) {
       const category = String(data.category || 'Clothes').trim();
-      cleaned.category = ['Clothes', 'Hosiery', 'Perfume'].includes(category) ? category : 'Clothes';
+      cleaned.category = ['Clothes', 'Hosiery', 'Perfume', 'Empty Bottle'].includes(category) ? category : 'Clothes';
     }
 
     if (data.brand !== undefined) {
@@ -41,15 +45,29 @@ function productsDB(db) {
 
     // Category-specific attribute pruning
     const currentCategory = cleaned.category || data.category || 'Clothes';
+    const isEmptyBottle = currentCategory === 'Empty Bottle' ||
+      (currentCategory === 'Perfume' && String(data.fragrance_type || '').trim().toLowerCase() === 'empty bottle');
 
     if (data.color !== undefined) {
-      cleaned.color = currentCategory === 'Perfume' ? null : (data.color ? String(data.color).trim() : null);
+      cleaned.color = currentCategory === 'Perfume' || currentCategory === 'Empty Bottle' ? null : (data.color ? String(data.color).trim() : null);
     }
     if (data.fabric !== undefined) {
-      cleaned.fabric = currentCategory === 'Perfume' ? null : (data.fabric ? String(data.fabric).trim() : null);
+      cleaned.fabric = currentCategory === 'Perfume' || currentCategory === 'Empty Bottle' ? null : (data.fabric ? String(data.fabric).trim() : null);
     }
     if (data.fragrance_type !== undefined) {
       cleaned.fragrance_type = currentCategory === 'Perfume' ? (data.fragrance_type ? String(data.fragrance_type).trim() : null) : null;
+    }
+    if (!isUpdate || data.measurement_ml !== undefined || data.category !== undefined || data.fragrance_type !== undefined) {
+      if (isEmptyBottle) {
+        const measurement = Number(data.measurement_ml);
+        if (!Number.isFinite(measurement) || measurement <= 0) {
+          throw new Error('Empty bottle measurement must be greater than zero ml');
+        }
+        cleaned.measurement_ml = measurement;
+        cleaned.size = `${measurement} ml`;
+      } else {
+        cleaned.measurement_ml = null;
+      }
     }
     if (data.gender !== undefined) {
       cleaned.gender = data.gender ? String(data.gender).trim() : null;
@@ -75,10 +93,17 @@ function productsDB(db) {
 
     if (!isUpdate || data.quantity !== undefined) {
       const quantity = nonNegativeNumber(data.quantity ?? 0, 'Quantity');
+      if (isEmptyBottle && !Number.isInteger(quantity)) {
+        throw new Error('Empty bottle stock quantity must be a whole number');
+      }
       cleaned.quantity = quantity;
     }
 
-    if (!isUpdate || data.inventory_unit !== undefined) cleaned.inventory_unit = String(data.inventory_unit || 'pcs').trim() || 'pcs';
+    if (isEmptyBottle) {
+      cleaned.inventory_unit = 'Bottles';
+    } else if (!isUpdate || data.inventory_unit !== undefined) {
+      cleaned.inventory_unit = String(data.inventory_unit || 'pcs').trim() || 'pcs';
+    }
     if (!isUpdate || data.retail_quantity !== undefined) {
       cleaned.retail_quantity = nonNegativeNumber(data.retail_quantity ?? 1, 'Retail quantity');
       if (cleaned.retail_quantity <= 0) throw new Error('Retail quantity must be greater than zero');
@@ -86,6 +111,9 @@ function productsDB(db) {
 
     if (!isUpdate || data.low_stock_threshold !== undefined) {
       const threshold = nonNegativeNumber(data.low_stock_threshold ?? 5, 'Low stock threshold');
+      if (isEmptyBottle && !Number.isInteger(threshold)) {
+        throw new Error('Empty bottle low stock threshold must be a whole number');
+      }
       cleaned.low_stock_threshold = threshold;
     }
 
@@ -146,14 +174,15 @@ function productsDB(db) {
     add(data) {
       const sanitized = validateAndSanitizeProduct(data);
       const stmt = db.prepare(`
-        INSERT INTO products (name, category, brand, size, color, fabric, fragrance_type, gender, barcode, sku, purchase_price, sale_price, wholesale_price, quantity, inventory_unit, retail_quantity, low_stock_threshold, supplier)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO products (name, category, brand, size, measurement_ml, color, fabric, fragrance_type, gender, barcode, sku, purchase_price, sale_price, wholesale_price, quantity, inventory_unit, retail_quantity, low_stock_threshold, supplier)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       const result = stmt.run(
         sanitized.name,
         sanitized.category,
         sanitized.brand || null,
         sanitized.size || null,
+        sanitized.measurement_ml ?? null,
         sanitized.color || null,
         sanitized.fabric || null,
         sanitized.fragrance_type || null,
@@ -177,7 +206,7 @@ function productsDB(db) {
       const fields = [];
       const params = [];
 
-      const allowedFields = ['name', 'category', 'brand', 'size', 'color', 'fabric', 'fragrance_type', 'gender', 'barcode', 'sku', 'purchase_price', 'sale_price', 'wholesale_price', 'quantity', 'inventory_unit', 'retail_quantity', 'low_stock_threshold', 'supplier'];
+      const allowedFields = ['name', 'category', 'brand', 'size', 'measurement_ml', 'color', 'fabric', 'fragrance_type', 'gender', 'barcode', 'sku', 'purchase_price', 'sale_price', 'wholesale_price', 'quantity', 'inventory_unit', 'retail_quantity', 'low_stock_threshold', 'supplier'];
       for (const field of allowedFields) {
         if (sanitized[field] !== undefined) {
           fields.push(`${field} = ?`);
@@ -206,6 +235,9 @@ function productsDB(db) {
       const txn = db.transaction(() => {
         const product = this.get(id);
         if (!product || !product.is_active) throw new Error('Active product not found');
+        if (isEmptyBottleProduct(product) && !Number.isInteger(quantity)) {
+          throw new Error('Empty bottle stock quantity must be a whole number');
+        }
         if (quantity <= 0) throw new Error('Stock-in quantity must be greater than zero');
         db.prepare("UPDATE products SET quantity = quantity + ?, updated_at = datetime('now', 'localtime') WHERE id = ?").run(quantity, id);
         db.prepare(`
@@ -228,6 +260,9 @@ function productsDB(db) {
       const txn = db.transaction(() => {
         const product = this.get(id);
         if (!product || !product.is_active) throw new Error('Active product not found');
+        if (isEmptyBottleProduct(product) && !Number.isInteger(quantity)) {
+          throw new Error('Empty bottle adjustment quantity must be a whole number');
+        }
         if (product.quantity < quantity) throw new Error(`Cannot remove ${quantity} units; only ${product.quantity} available`);
         db.prepare("UPDATE products SET quantity = quantity - ?, updated_at = datetime('now', 'localtime') WHERE id = ?").run(quantity, id);
         

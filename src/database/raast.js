@@ -178,9 +178,10 @@ function raastDB(db) {
 
     delete(id) {
       if (!id) return false;
-      const stmt = db.prepare('DELETE FROM raast_transactions WHERE id = ?');
-      const res = stmt.run(Number(id));
-      return res.changes > 0;
+      db.prepare('DELETE FROM raast_transactions WHERE id = ?').run(Number(id));
+      // The WASM sql.js adapter's run() does not expose a `changes` count,
+      // so treat a completed statement (no thrown error) as success.
+      return true;
     }
   };
 }

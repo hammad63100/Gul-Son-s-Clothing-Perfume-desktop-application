@@ -168,7 +168,7 @@ window.DashboardPage = {
 
         </div>
 
-        <!-- ─── Category Breakdown: Top Clothes, Hosiery & Perfumes ─── -->
+        <!-- ─── Category Breakdown: Clothes, Hosiery, Perfumes & Empty Bottles ─── -->
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-6); margin-top: var(--space-6);">
           
           <!-- Top Selling Clothes -->
@@ -220,15 +220,15 @@ window.DashboardPage = {
           <!-- Top Selling Perfumes -->
           <div class="card">
             <div class="card-header">
-              <h3 class="card-title">🧴 Top-Selling Perfumes</h3>
-              <span class="badge badge-perfume">Perfumes</span>
+              <h3 class="card-title">🧴 Top-Selling Perfumes &amp; Empty Bottles</h3>
+              <span class="badge badge-perfume">Perfume Stock</span>
             </div>
             <div class="table-container" style="margin-top:var(--space-3);">
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th>Perfume Name</th>
-                    <th>Volume</th>
+                    <th>Product Name</th>
+                    <th>Size</th>
                     <th>Units Sold</th>
                     <th>Revenue</th>
                   </tr>
@@ -363,7 +363,7 @@ window.DashboardPage = {
       const clothesCount = summary.totalClothes || 0;
       const hosieryCount = summary.totalHosiery || 0;
       const perfumeCount = summary.totalPerfume || 0;
-      document.getElementById('dash-total-products').textContent = `${summary.totalProducts} (${clothesCount} Clt / ${hosieryCount} Hos / ${perfumeCount} Prf)`;
+      document.getElementById('dash-total-products').textContent = `${summary.totalProducts} (${clothesCount} Clt / ${hosieryCount} Hos / ${perfumeCount} Perfume/Bottle)`;
       document.getElementById('dash-stock-value').textContent = formatters.currency(summary.stockValue, curr);
       document.getElementById('dash-low-stock-cnt').textContent = `${summary.lowStockProducts.length} items`;
       document.getElementById('dash-out-stock-cnt').textContent = `${summary.outOfStockCount} items`;
@@ -494,7 +494,7 @@ window.DashboardPage = {
             <tr>
               <td style="font-weight:600;">${p.name}</td>
               <td><span class="badge badge-perfume">${p.size || 'Bottle'}</span></td>
-              <td style="font-weight:700;">${p.total_sold} ${formatters.getProductUnit({ ...p, category: 'Perfume' })}</td>
+              <td style="font-weight:700;">${p.total_sold} ${formatters.getProductUnit({ ...p, category: p.category === 'Empty Bottle' ? 'Empty Bottle' : 'Perfume' })}</td>
               <td style="color:var(--color-accent); font-weight:700;">${formatters.currency(p.total_revenue, curr)}</td>
             </tr>
           `).join('');

@@ -3,6 +3,9 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const { initDatabase } = require('../src/database/init');
+const { productsDB } = require('../src/database/products');
+global.window = {};
+require('../renderer/js/utils/formatters');
 const {
   backupDatabase,
   exportAllToJson,
@@ -25,6 +28,68 @@ async function runTest() {
   // 1. Initialize Test Database
   const db = await initDatabase(testDbPath);
   console.log('1. Database initialized successfully');
+
+  const products = productsDB(db);
+  assert.strictEqual(
+    db.prepare("SELECT COUNT(*) AS c FROM categories WHERE name = 'Empty Bottle' AND type = 'Perfume'").get().c,
+    1
+  );
+  assert.strictEqual(db.prepare("SELECT COUNT(*) AS c FROM fragrance_types WHERE name = 'Empty Bottle'").get().c, 0);
+  assert.throws(() => products.add({
+    name: 'Invalid Empty Bottle',
+    category: 'Empty Bottle',
+    measurement_ml: 0
+  }), /measurement must be greater than zero/i);
+  assert.throws(() => products.add({
+    name: 'Fractional Empty Bottle Stock',
+    category: 'Empty Bottle',
+    measurement_ml: 100,
+    quantity: 0.5
+  }), /stock quantity must be a whole number/i);
+  const emptyBottle = products.add({
+    name: 'Empty Perfume Bottle',
+    category: 'Empty Bottle',
+    brand: 'Generic',
+    size: '100 ml',
+    measurement_ml: 100,
+    purchase_price: 10,
+    sale_price: 25,
+    quantity: 8,
+    inventory_unit: 'Bottles',
+    low_stock_threshold: 2
+  });
+  assert.strictEqual(emptyBottle.measurement_ml, 100);
+  assert.strictEqual(emptyBottle.size, '100 ml');
+  assert.strictEqual(window.formatters.getProductUnit(emptyBottle), 'Bottles');
+  assert.throws(() => products.stockIn(emptyBottle.id, 0.5, 'Test Supplier'), /whole number/);
+  assert.throws(() => products.adjustStock(emptyBottle.id, 0.5, 'Test adjustment'), /whole number/);
+  const updatedEmptyBottle = products.update(emptyBottle.id, {
+    category: 'Empty Bottle',
+    measurement_ml: 120,
+    size: 'old size',
+    inventory_unit: 'pcs'
+  });
+  assert.strictEqual(updatedEmptyBottle.measurement_ml, 120);
+  assert.strictEqual(updatedEmptyBottle.size, '120 ml');
+  assert.strictEqual(updatedEmptyBottle.inventory_unit, 'Bottles');
+  console.log('1b. Empty bottle measurement and validation passed');
+
+  const legacyDbPath = path.join(testDbDir, 'legacy_empty_bottle.db');
+  const legacyDb = await initDatabase(legacyDbPath);
+  legacyDb.prepare(`
+    INSERT INTO products (name, category, size, measurement_ml, fragrance_type, quantity, inventory_unit)
+    VALUES (?, 'Perfume', ?, ?, 'Empty Bottle', 3, 'pcs')
+  `).run('Legacy Empty Bottle', '80 ml', 80);
+  legacyDb.close();
+  const migratedLegacyDb = await initDatabase(legacyDbPath);
+  const migratedProduct = migratedLegacyDb.prepare('SELECT category, size, measurement_ml, fragrance_type, inventory_unit FROM products WHERE name = ?').get('Legacy Empty Bottle');
+  assert.strictEqual(migratedProduct.category, 'Empty Bottle');
+  assert.strictEqual(migratedProduct.size, '80 ml');
+  assert.strictEqual(migratedProduct.measurement_ml, 80);
+  assert.strictEqual(migratedProduct.fragrance_type, null);
+  assert.strictEqual(migratedProduct.inventory_unit, 'Bottles');
+  migratedLegacyDb.close();
+  console.log('1c. Existing empty bottle products migrated to the main category');
 
   // 2. Insert sample products, sales, sale_items, expenses, customers, suppliers
   const insertProd = db.prepare(`
@@ -99,6 +164,9 @@ async function runTest() {
   const restoreExcelResult = await restoreDatabase(db, excelExportPath);
   assert.strictEqual(restoreExcelResult.success, true);
   assert.strictEqual(restoreExcelResult.mode, 'excel');
+  const restoredFromExcel = db.prepare("SELECT measurement_ml, size FROM products WHERE name = ?").get('Empty Perfume Bottle');
+  assert.strictEqual(restoredFromExcel.measurement_ml, 120);
+  assert.strictEqual(restoredFromExcel.size, '120 ml');
   const restoredFromExcelCount = db.prepare('SELECT count(*) as c FROM products').get().c;
   assert.strictEqual(restoredFromExcelCount >= 3, true);
   console.log(`5c. Excel Master Restore verified: ${restoredFromExcelCount} products restored from Excel`);
@@ -122,11 +190,17 @@ async function runTest() {
 
   const restoredProductsCount = db.prepare('SELECT count(*) as c FROM products').get().c;
   assert.strictEqual(restoredProductsCount >= 3, true);
+  const restoredFromJson = db.prepare("SELECT measurement_ml, size FROM products WHERE name = ?").get('Empty Perfume Bottle');
+  assert.strictEqual(restoredFromJson.measurement_ml, 120);
+  assert.strictEqual(restoredFromJson.size, '120 ml');
   console.log(`8. JSON Restore verified: ${restoredProductsCount} products successfully restored`);
 
   // 9. Test SQLite .db Restore into DB
   const restoreDbResult = await restoreDatabase(db, dbBackupResult.path);
   assert.strictEqual(restoreDbResult.success, true);
+  const restoredFromSqlite = db.prepare("SELECT measurement_ml, size FROM products WHERE name = ?").get('Empty Perfume Bottle');
+  assert.strictEqual(restoredFromSqlite.measurement_ml, 120);
+  assert.strictEqual(restoredFromSqlite.size, '120 ml');
   console.log('9. SQLite .db Restore verified');
 
   // Cleanup test artifacts

@@ -57,6 +57,7 @@ window.InventoryPage = {
             <option value="Clothes">Clothes</option>
             <option value="Hosiery">Hosiery</option>
             <option value="Perfume">Perfume</option>
+            <option value="Empty Bottle">Empty Bottle</option>
           </select>
 
           <div style="margin-left: auto;">
@@ -204,41 +205,18 @@ window.InventoryPage = {
     const fragranceTypes = await this.getFragranceTypes();
 
     modal.show({
-      title: 'Add New Product (Clothes / Hosiery / Perfume)',
+      title: 'Add New Product (Clothes / Hosiery / Perfume / Empty Bottle)',
       size: 'modal-lg',
       bodyHTML: `
         <form id="form-add-product">
-          <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
-            <div class="form-group">
-              <label class="form-label">Product Name *</label>
-              <input type="text" class="form-input" id="prod-name" placeholder="e.g., Cotton Embroidered Kurti / Oud Royal 100ml" required>
-            </div>
+          <div class="form-row" style="display:grid; grid-template-columns: 1fr; gap: var(--space-4);">
             <div class="form-group">
               <label class="form-label">Main Category *</label>
               <select class="form-select" id="prod-category" onchange="InventoryPage.onModalCategoryChange(this.value)">
                 <option value="Clothes">Clothes</option>
                 <option value="Hosiery">Hosiery</option>
                 <option value="Perfume">Perfume</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Perfume Specific Attributes (Above Brand / Label) -->
-          <div id="perfume-attr-group" class="form-row" style="margin-top: var(--space-3); display:none; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
-            <div class="form-group">
-              <label class="form-label">Fragrance Type</label>
-              <div id="prod-fragrance-wrapper" style="position:relative; width:100%;">
-                <select class="form-select" id="prod-fragrance" onchange="InventoryPage.onFragranceTypeChange(this.value, 'prod')" style="width:100%;">
-                  ${this.getFragranceTypeOptionsHTML(fragranceTypes)}
-                </select>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Target Gender</label>
-              <select class="form-select" id="prod-gender">
-              <option value="Men">Men</option>
-              <option value="Women">Women</option>
-                <option value="Unisex">Unisex</option>
+                <option value="Empty Bottle">Empty Bottle</option>
               </select>
             </div>
           </div>
@@ -272,6 +250,43 @@ window.InventoryPage = {
                   ${this.getSizeOptionsHTML('Clothes')}
                 </select>
               </div>
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-top: var(--space-3); display:grid; grid-template-columns: 1fr; gap: var(--space-4);">
+            <div class="form-group">
+              <label class="form-label">Product Name *</label>
+              <input type="text" class="form-input" id="prod-name" placeholder="e.g., Cotton Embroidered Kurti / Oud Royal 100ml" required>
+            </div>
+          </div>
+
+          <div id="perfume-attr-group" class="form-row" style="margin-top: var(--space-3); display:none; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+            <div class="form-group">
+              <label class="form-label">Perfume Type</label>
+              <div id="prod-fragrance-wrapper" style="position:relative; width:100%;">
+                <select class="form-select" id="prod-fragrance" onchange="InventoryPage.onFragranceTypeChange(this.value, 'prod')" style="width:100%;">
+                  ${this.getFragranceTypeOptionsHTML(fragranceTypes)}
+                </select>
+              </div>
+            </div>
+            <div class="form-group" id="prod-gender-group">
+              <label class="form-label">Target Gender</label>
+              <select class="form-select" id="prod-gender">
+                <option value="Men">Men</option>
+                <option value="Women">Women</option>
+                <option value="Unisex">Unisex</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="prod-measurement-group" class="form-row" style="margin-top: var(--space-3); display:none; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+            <div class="form-group">
+              <label class="form-label">Measurement (number) *</label>
+              <input type="number" step="any" min="0.01" class="form-input" id="prod-measurement">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Size</label>
+              <input type="text" class="form-input" value="ml" readonly>
             </div>
           </div>
 
@@ -530,7 +545,7 @@ window.InventoryPage = {
     const list = Array.from(uniqueMap.values());
     const defaultVal = selectedVal ? selectedVal.trim() : (list.length > 0 ? list[0] : 'Body spray');
     let html = list.map(t => `<option value="${t}" ${t.toLowerCase() === defaultVal.toLowerCase() ? 'selected' : ''}>${t}</option>`).join('');
-    html += `<option value="ADD_NEW_FRAGRANCE_TYPE" style="font-weight:bold; color:var(--color-primary);">➕ Add Your Fragrance Type...</option>`;
+    html += `<option value="ADD_NEW_FRAGRANCE_TYPE" style="font-weight:bold; color:var(--color-primary);">➕ Add Your Perfume Type...</option>`;
     return html;
   },
 
@@ -543,7 +558,7 @@ window.InventoryPage = {
 
       wrapper.innerHTML = `
         <div class="input-group" id="${prefix}-new-fragrance-group" style="display:flex; width:100%;">
-          <input type="text" class="form-input" id="${prefix}-new-fragrance-input" placeholder="New fragrance type name..." style="flex:1; font-size:12px; height:36px; padding:0 8px;">
+          <input type="text" class="form-input" id="${prefix}-new-fragrance-input" placeholder="New perfume type name..." style="flex:1; font-size:12px; height:36px; padding:0 8px;">
           <button type="button" class="btn btn-primary btn-sm" id="${prefix}-new-fragrance-save" style="padding:0 10px; height:36px;">OK</button>
           <button type="button" class="btn btn-secondary btn-sm" id="${prefix}-new-fragrance-cancel" style="padding:0 8px; height:36px;">✖</button>
         </div>
@@ -559,11 +574,11 @@ window.InventoryPage = {
           if (newType) {
             try {
               await window.api.master.addFragranceType(newType);
-              toast.success(`Fragrance Type "${newType}" added!`);
+              toast.success(`Perfume Type "${newType}" added!`);
               chosen = newType;
             } catch (err) {
               console.error(err);
-              toast.error('Failed to add fragrance type');
+              toast.error('Failed to add perfume type');
             }
           }
         }
@@ -575,6 +590,7 @@ window.InventoryPage = {
           </select>
         `;
         wrapper.dataset.prevVal = chosen;
+        this.updateEmptyBottleFields(prefix, chosen);
       };
 
       document.getElementById(`${prefix}-new-fragrance-save`).onclick = () => finish(true);
@@ -586,7 +602,36 @@ window.InventoryPage = {
     } else {
       const wrapper = document.getElementById(`${prefix}-fragrance-wrapper`);
       if (wrapper) wrapper.dataset.prevVal = value;
+      this.updateEmptyBottleFields(prefix, value);
     }
+  },
+
+  updateEmptyBottleFields(prefix, fragranceType) {
+    const categoryId = prefix === 'prod' ? 'prod-category' : 'edit-prod-category';
+    const category = document.getElementById(categoryId)?.value;
+    const isEmptyBottle = category === 'Empty Bottle' ||
+      (category === 'Perfume' && String(fragranceType || '').trim().toLowerCase() === 'empty bottle');
+    const measurementGroup = document.getElementById(`${prefix}-measurement-group`);
+    const measurementInput = document.getElementById(`${prefix}-measurement`);
+    const sizeGroup = document.getElementById(prefix === 'prod' ? 'group-size' : 'edit-group-size');
+    const genderGroup = document.getElementById(`${prefix}-gender-group`);
+    const quantityLabel = document.getElementById(prefix === 'prod' ? 'prod-qty-label' : 'edit-qty-label');
+    const thresholdLabel = document.getElementById(prefix === 'prod' ? 'prod-threshold-label' : 'edit-threshold-label');
+    const quantityInput = document.getElementById(prefix === 'prod' ? 'prod-qty' : 'edit-prod-qty');
+    const thresholdInput = document.getElementById(prefix === 'prod' ? 'prod-threshold' : 'edit-prod-threshold');
+
+    if (measurementGroup) measurementGroup.style.display = isEmptyBottle ? 'grid' : 'none';
+    if (measurementInput) measurementInput.required = isEmptyBottle;
+    if (sizeGroup) sizeGroup.style.display = isEmptyBottle ? 'none' : '';
+    if (genderGroup) genderGroup.style.display = isEmptyBottle ? 'none' : '';
+    if (quantityLabel) quantityLabel.textContent = isEmptyBottle
+      ? `${prefix === 'prod' ? 'Initial' : 'Current'} Stock Qty (Bottles) *`
+      : `${prefix === 'prod' ? 'Initial' : 'Current'} Stock Qty *`;
+    if (thresholdLabel) thresholdLabel.textContent = isEmptyBottle
+      ? 'Low Stock Threshold (Bottles)'
+      : 'Low Stock Threshold';
+    if (quantityInput) quantityInput.step = isEmptyBottle ? '1' : 'any';
+    if (thresholdInput) thresholdInput.step = isEmptyBottle ? '1' : 'any';
   },
 
   toggleBrandDropdown() {
@@ -606,6 +651,7 @@ window.InventoryPage = {
       display.style.display = 'none';
       
       const currentCat = document.getElementById('prod-category')?.value || 'Clothes';
+      const brandCategory = currentCat === 'Empty Bottle' ? 'Perfume' : currentCat;
       const inputContainer = document.createElement('div');
       inputContainer.className = 'input-group';
       inputContainer.innerHTML = `
@@ -623,7 +669,7 @@ window.InventoryPage = {
           const newBrand = input.value.trim();
           if (newBrand) {
             try {
-              await window.api.master.addBrand(newBrand, currentCat);
+              await window.api.master.addBrand(newBrand, brandCategory);
               toast.success(`Brand "${newBrand}" added to ${currentCat}!`);
               await InventoryPage.refreshBrandsDropdown(newBrand, currentCat);
             } catch (err) {
@@ -670,7 +716,8 @@ window.InventoryPage = {
 
   async refreshBrandsDropdown(selectedValue, category) {
     const cat = category || document.getElementById('prod-category')?.value || 'Clothes';
-    const brands = await window.api.master.getBrands(cat);
+    const brandCategory = cat === 'Empty Bottle' ? 'Perfume' : cat;
+    const brands = await window.api.master.getBrands(brandCategory);
     const dropdown = document.getElementById('custom-brand-dropdown');
     if (!dropdown) return;
     dropdown.innerHTML = `
@@ -721,6 +768,21 @@ window.InventoryPage = {
       if (supplierInput) supplierInput.placeholder = 'e.g., Lucky Textile / Sahar Hosiery';
       if (qtyHelper) { qtyHelper.textContent = 'Total Pieces / Packs'; qtyHelper.style.display = 'block'; }
       if (thresholdHelper) { thresholdHelper.textContent = 'Pieces / Packs count'; thresholdHelper.style.display = 'block'; }
+    } else if (cat === 'Empty Bottle') {
+      if (nameInput) nameInput.placeholder = 'e.g., Empty Perfume Bottle 100ml';
+      if (sizeLabel) sizeLabel.textContent = 'Measurement / Size';
+      if (wrapper) {
+        wrapper.innerHTML = `
+          <select class="form-select" id="prod-size-unit" onchange="InventoryPage.onSizeUnitChange(this.value, 'prod')" style="width:100%;">
+            ${this.getSizeOptionsHTML('Perfume')}
+          </select>
+        `;
+      }
+      if (clothesGroup) clothesGroup.style.display = 'none';
+      if (perfumeGroup) perfumeGroup.style.display = 'none';
+      if (supplierInput) supplierInput.placeholder = 'e.g., Empty bottle supplier';
+      if (qtyHelper) qtyHelper.style.display = 'none';
+      if (thresholdHelper) thresholdHelper.style.display = 'none';
     } else if (cat === 'Perfume') {
       if (nameInput) nameInput.placeholder = 'e.g., Oud Royal 100ml / Lattafa Raghba';
       if (sizeLabel) sizeLabel.textContent = 'Measurement / Size';
@@ -754,6 +816,7 @@ window.InventoryPage = {
       if (qtyHelper) qtyHelper.style.display = 'none';
       if (thresholdHelper) thresholdHelper.style.display = 'none';
     }
+    this.updateEmptyBottleFields('prod', document.getElementById('prod-fragrance')?.value);
   },
 
   async saveAddProduct() {
@@ -777,30 +840,44 @@ window.InventoryPage = {
       fragrance_type = fragSelect ? (fragSelect.value !== 'ADD_NEW_FRAGRANCE_TYPE' ? fragSelect.value : '') : (fragInput?.value.trim() || null);
       if (!fragrance_type) fragrance_type = null;
     }
-    const gender = category === 'Perfume' ? (document.getElementById('prod-gender')?.value || null) : null;
+    const isEmptyBottle = category === 'Empty Bottle' ||
+      (category === 'Perfume' && String(fragrance_type || '').trim().toLowerCase() === 'empty bottle');
+    const measurement_ml = isEmptyBottle ? Number(document.getElementById('prod-measurement').value) : null;
+    if (isEmptyBottle && (!Number.isFinite(measurement_ml) || measurement_ml <= 0)) {
+      return toast.error('Measurement must be greater than 0 ml');
+    }
+    if (isEmptyBottle) size = `${measurement_ml} ml`;
+    const gender = category === 'Perfume' && !isEmptyBottle ? (document.getElementById('prod-gender')?.value || null) : null;
 
     const purchase_price = parseFloat(document.getElementById('prod-cost').value) || 0;
     const sale_price = parseFloat(document.getElementById('prod-price').value) || 0;
     const quantity = parseFloat(document.getElementById('prod-qty').value) || 0;
-    const low_stock_threshold = parseInt(document.getElementById('prod-threshold').value) || 5;
+    const low_stock_threshold = isEmptyBottle
+      ? Number(document.getElementById('prod-threshold').value)
+      : (parseInt(document.getElementById('prod-threshold').value) || 5);
     const barcode = document.getElementById('prod-barcode').value.trim();
     const supplier = document.getElementById('prod-supplier').value.trim();
     const isAttar = String(fragrance_type || '').trim().toLowerCase() === 'attar';
     const retail_quantity = 1;
 
     if (!name) return toast.error('Product Name is required');
+    if (isEmptyBottle && (!Number.isInteger(quantity) || !Number.isInteger(low_stock_threshold))) {
+      return toast.error('Empty bottle stock and low-stock threshold must be whole numbers');
+    }
 
     try {
       await window.api.products.add({
         name, category, brand, size, color, fabric, fragrance_type, gender,
-        purchase_price, sale_price, quantity, inventory_unit: isAttar ? 'ml' : 'pcs', retail_quantity, low_stock_threshold, barcode, supplier
+        measurement_ml, purchase_price, sale_price, quantity,
+        inventory_unit: isEmptyBottle ? 'Bottles' : (isAttar ? 'ml' : 'pcs'),
+        retail_quantity, low_stock_threshold, barcode, supplier
       });
       toast.success('Product added successfully!');
       modal.hide();
       this.loadProducts();
     } catch (err) {
       console.error(err);
-      toast.error('Failed to save product');
+      toast.error(err.message || 'Failed to save product');
     }
   },
 
@@ -808,7 +885,7 @@ window.InventoryPage = {
     const datalist = document.getElementById('edit-brand-datalist');
     if (datalist) {
       try {
-        const brands = await window.api.master.getBrands(cat);
+        const brands = await window.api.master.getBrands(cat === 'Empty Bottle' ? 'Perfume' : cat);
         datalist.innerHTML = brands.map(b => `<option value="${b.name}">${b.name}</option>`).join('');
       } catch (e) {}
     }
@@ -838,6 +915,21 @@ window.InventoryPage = {
       if (supplierInput) supplierInput.placeholder = 'e.g., Lucky Textile / Sahar Hosiery';
       if (qtyHelper) { qtyHelper.textContent = 'Total Pieces / Packs'; qtyHelper.style.display = 'block'; }
       if (thresholdHelper) { thresholdHelper.textContent = 'Pieces / Packs count'; thresholdHelper.style.display = 'block'; }
+    } else if (cat === 'Empty Bottle') {
+      if (nameInput) nameInput.placeholder = 'e.g., Empty Perfume Bottle 100ml';
+      if (sizeLabel) sizeLabel.textContent = 'Measurement / Size';
+      if (wrapper) {
+        wrapper.innerHTML = `
+          <select class="form-select" id="edit-prod-size-unit" onchange="InventoryPage.onSizeUnitChange(this.value, 'edit')" style="width:100%;">
+            ${this.getSizeOptionsHTML('Perfume')}
+          </select>
+        `;
+      }
+      if (clothesGroup) clothesGroup.style.display = 'none';
+      if (perfumeGroup) perfumeGroup.style.display = 'none';
+      if (supplierInput) supplierInput.placeholder = 'e.g., Empty bottle supplier';
+      if (qtyHelper) qtyHelper.style.display = 'none';
+      if (thresholdHelper) thresholdHelper.style.display = 'none';
     } else if (cat === 'Perfume') {
       if (nameInput) nameInput.placeholder = 'e.g., Oud Royal 100ml / Lattafa Raghba';
       if (sizeLabel) sizeLabel.textContent = 'Measurement / Size';
@@ -870,16 +962,22 @@ window.InventoryPage = {
       if (qtyHelper) qtyHelper.style.display = 'none';
       if (thresholdHelper) thresholdHelper.style.display = 'none';
     }
+    this.updateEmptyBottleFields('edit', document.getElementById('edit-prod-fragrance')?.value);
   },
 
   async openEditModal(id) {
     const product = await window.api.products.get(id);
     if (!product) return;
     const fragranceTypes = await this.getFragranceTypes();
-    const categoryBrands = await window.api.master.getBrands(product.category || 'Clothes');
+    const categoryBrands = await window.api.master.getBrands(product.category === 'Empty Bottle' ? 'Perfume' : (product.category || 'Clothes'));
 
     const isPerfume = product.category === 'Perfume';
     const isHosiery = product.category === 'Hosiery';
+    const isEmptyBottle = product.category === 'Empty Bottle' ||
+      (isPerfume && String(product.fragrance_type || '').trim().toLowerCase() === 'empty bottle');
+    const storedMeasurement = Number(product.measurement_ml) > 0
+      ? Number(product.measurement_ml)
+      : (Number(String(product.size || '').match(/[\d.]+/)?.[0]) || '');
 
     const currentSize = product.size || (isPerfume ? 'ml (ملی لیٹر)' : (isHosiery ? 'L' : 'Meter (میٹر)'));
 
@@ -909,27 +1007,38 @@ window.InventoryPage = {
                 <option value="Clothes" ${product.category === 'Clothes' ? 'selected' : ''}>Clothes</option>
                 <option value="Hosiery" ${isHosiery ? 'selected' : ''}>Hosiery</option>
                 <option value="Perfume" ${isPerfume ? 'selected' : ''}>Perfume</option>
+                <option value="Empty Bottle" ${product.category === 'Empty Bottle' ? 'selected' : ''}>Empty Bottle</option>
               </select>
             </div>
           </div>
 
-          <!-- Perfume Specific Attributes (Above Brand / Label) -->
           <div id="edit-perfume-attr-group" class="form-row" style="margin-top: var(--space-3); ${isPerfume ? 'display:grid;' : 'display:none;'} grid-template-columns: 1fr 1fr; gap: var(--space-4);">
             <div class="form-group">
-              <label class="form-label">Fragrance Type</label>
+              <label class="form-label">Perfume Type</label>
               <div id="edit-prod-fragrance-wrapper" style="position:relative; width:100%;">
                 <select class="form-select" id="edit-prod-fragrance" onchange="InventoryPage.onFragranceTypeChange(this.value, 'edit')" style="width:100%;">
                   ${this.getFragranceTypeOptionsHTML(fragranceTypes, product.fragrance_type || '')}
                 </select>
               </div>
             </div>
-            <div class="form-group">
+            <div class="form-group" id="edit-gender-group" style="${isEmptyBottle ? 'display:none;' : ''}">
               <label class="form-label">Target Gender</label>
               <select class="form-select" id="edit-prod-gender">
                 <option value="Unisex" ${(product.gender || 'Unisex') === 'Unisex' ? 'selected' : ''}>Unisex</option>
                 <option value="Men" ${product.gender === 'Men' ? 'selected' : ''}>Men</option>
                 <option value="Women" ${product.gender === 'Women' ? 'selected' : ''}>Women</option>
               </select>
+            </div>
+          </div>
+
+          <div id="edit-measurement-group" class="form-row" style="margin-top: var(--space-3); display:${isEmptyBottle ? 'grid' : 'none'}; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+            <div class="form-group">
+              <label class="form-label">Measurement (number) *</label>
+              <input type="number" step="any" min="0.01" class="form-input" id="edit-measurement" value="${storedMeasurement}" ${isEmptyBottle ? 'required' : ''}>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Size</label>
+              <input type="text" class="form-input" value="ml" readonly>
             </div>
           </div>
 
@@ -972,12 +1081,12 @@ window.InventoryPage = {
 
           <div class="form-row" style="margin-top: var(--space-3); display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
             <div class="form-group">
-              <label class="form-label">Current Stock Qty *</label>
+              <label class="form-label" id="edit-qty-label">Current Stock Qty *</label>
               <input type="number" step="any" class="form-input" id="edit-prod-qty" value="${product.quantity}" min="0" required>
               <small class="form-helper" id="edit-qty-helper" style="${isHosiery ? '' : 'display:none;'} color:var(--color-text-secondary); font-size:var(--text-xs); margin-top:2px;">${isHosiery ? 'Total Pieces / Packs' : ''}</small>
             </div>
             <div class="form-group">
-              <label class="form-label">Low Stock Threshold</label>
+              <label class="form-label" id="edit-threshold-label">Low Stock Threshold</label>
               <input type="number" class="form-input" id="edit-prod-threshold" value="${product.low_stock_threshold}">
               <small class="form-helper" id="edit-threshold-helper" style="${isHosiery ? '' : 'display:none;'} color:var(--color-text-secondary); font-size:var(--text-xs); margin-top:2px;">${isHosiery ? 'Pieces / Packs count' : ''}</small>
             </div>
@@ -1000,6 +1109,7 @@ window.InventoryPage = {
         <button class="btn btn-primary" onclick="InventoryPage.saveEditProduct(${id})">Save Changes</button>
       `
     });
+    this.updateEmptyBottleFields('edit', product.fragrance_type);
   },
 
   async saveEditProduct(id) {
@@ -1023,27 +1133,46 @@ window.InventoryPage = {
       fragrance_type = fragSelect ? (fragSelect.value !== 'ADD_NEW_FRAGRANCE_TYPE' ? fragSelect.value : '') : (fragInput?.value.trim() || null);
       if (!fragrance_type) fragrance_type = null;
     }
-    const gender = category === 'Perfume' ? (document.getElementById('edit-prod-gender')?.value || null) : null;
+    const isEmptyBottle = category === 'Empty Bottle' ||
+      (category === 'Perfume' && String(fragrance_type || '').trim().toLowerCase() === 'empty bottle');
+    const measurement_ml = isEmptyBottle ? Number(document.getElementById('edit-measurement').value) : null;
+    if (isEmptyBottle && (!Number.isFinite(measurement_ml) || measurement_ml <= 0)) {
+      return toast.error('Measurement must be greater than 0 ml');
+    }
+    if (isEmptyBottle) size = `${measurement_ml} ml`;
+    const isAttar = String(fragrance_type || '').trim().toLowerCase() === 'attar';
+    const gender = category === 'Perfume' && !isEmptyBottle ? (document.getElementById('edit-prod-gender')?.value || null) : null;
     const purchase_price = parseFloat(document.getElementById('edit-prod-cost').value) || 0;
     const sale_price = parseFloat(document.getElementById('edit-prod-price').value) || 0;
-    const quantity = parseInt(document.getElementById('edit-prod-qty').value) || 0;
-    const low_stock_threshold = parseInt(document.getElementById('edit-prod-threshold').value) || 5;
+    const quantity = parseFloat(document.getElementById('edit-prod-qty').value) || 0;
+    const low_stock_threshold = isEmptyBottle
+      ? Number(document.getElementById('edit-prod-threshold').value)
+      : (parseInt(document.getElementById('edit-prod-threshold').value) || 5);
     const barcode = document.getElementById('edit-prod-barcode')?.value.trim() || null;
     const supplier = document.getElementById('edit-prod-supplier')?.value.trim() || null;
 
     if (!name) return toast.error('Product Name is required');
+    if (isEmptyBottle && (!Number.isInteger(quantity) || !Number.isInteger(low_stock_threshold))) {
+      return toast.error('Empty bottle stock and low-stock threshold must be whole numbers');
+    }
 
     try {
-      await window.api.products.update(id, { 
-        name, category, brand, size, color, fabric, fragrance_type, gender,
-        purchase_price, sale_price, quantity, low_stock_threshold, barcode, supplier 
-      });
+      const currentProduct = await window.api.products.get(id);
+      const updateData = {
+        name, category, brand, size, color, fabric, fragrance_type, gender, measurement_ml,
+        purchase_price, sale_price, quantity, low_stock_threshold, barcode, supplier
+      };
+      if (isEmptyBottle || currentProduct?.category === 'Empty Bottle' ||
+          String(currentProduct?.fragrance_type || '').trim().toLowerCase() === 'empty bottle') {
+        updateData.inventory_unit = isEmptyBottle ? 'Bottles' : (isAttar ? 'ml' : 'pcs');
+      }
+      await window.api.products.update(id, updateData);
       toast.success('Product updated!');
       modal.hide();
       this.loadProducts();
     } catch (err) {
       console.error(err);
-      toast.error('Failed to update product');
+      toast.error(err.message || 'Failed to update product');
     }
   },
 
@@ -1052,6 +1181,7 @@ window.InventoryPage = {
     if (!product) return;
 
     const unit = formatters.getProductUnit(product);
+    const quantityStep = unit === 'Bottles' ? '1' : 'any';
     modal.show({
       title: `Stock In — ${product.name}`,
       bodyHTML: `
@@ -1060,7 +1190,7 @@ window.InventoryPage = {
         </div>
         <div class="form-group">
           <label class="form-label">Additional Quantity to Add (${unit}) *</label>
-          <input type="number" step="any" class="form-input" id="stockin-qty" value="10" min="0.01" required>
+          <input type="number" step="${quantityStep}" class="form-input" id="stockin-qty" value="10" min="0.01" required>
         </div>
         <div class="form-group" style="margin-top: var(--space-3);">
           <label class="form-label">Supplier Reference</label>
@@ -1087,7 +1217,7 @@ window.InventoryPage = {
       modal.hide();
       this.loadProducts();
     } catch (err) {
-      toast.error('Failed to add stock');
+      toast.error(err.message || 'Failed to add stock');
     }
   },
 
